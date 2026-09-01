@@ -1,0 +1,30 @@
+[package]
+name = "robot_workspace"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+default-run = "robot_workspace"
+
+[dependencies]
+eframe = { version = "0.36.1", default-features = true }
+egui = "0.36.1"
+egui_dock = "0.21.1"
+egui_plot = { package = "egui_plot", path = "../eguiLibrary/egui_plot-main/egui_plot" }
+crossbeam-channel = "0.5.16"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+rerun = { version = "=0.36.3", default-features = false, features = ["sdk"], optional = true }
+
+[features]
+default = []
+rerun-recording = ["dep:rerun"]
+embedded-viewer = [
+    "rerun-recording",
+    "rerun/native_viewer",
+    "rerun/server",
+]
+
+[profile.dev.package."*"]
+opt-level = 2
+debug = 0

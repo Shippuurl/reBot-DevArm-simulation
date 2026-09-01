@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Rust: rerun_sample",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": { "args": ["build", "--features", "rerun-recording", "--bin", "rerun_sample"] },
+      "args": ["${workspaceFolder}/recordings/dev.rrd"],
+      "cwd": "${workspaceFolder}",
+      "env": { "ROBOT_MODEL_ROOT": "${workspaceFolder}/assets/robot/b601_rs" }
+    },
+    {
+      "name": "C++: mock gateway (gdb)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/cpp/mock_gateway/build-vscode/arm_console_mock_gateway",
+      "args": ["50051", "${workspaceFolder}/assets/robot/b601_rs/mujoco/scene.xml"],
+      "cwd": "${workspaceFolder}/cpp/mock_gateway",
+      "MIMode": "gdb",
+      "externalConsole": false
+    }
+  ]
+}

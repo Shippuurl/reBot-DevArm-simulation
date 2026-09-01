@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "model": "b601_dm_fixend",
+  "units": "m",
+  "coordinate_system": "right_handed_z_up",
+  "urdf": "urdf/reBot-DevArm_fixend.urdf",
+  "visuals": [
+    { "link": "base_link", "name": "base_link", "mesh": "meshes_fixend/base_link.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link1", "name": "link1", "mesh": "meshes_fixend/link1.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link2", "name": "link2", "mesh": "meshes_fixend/link2.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link3", "name": "link3", "mesh": "meshes_fixend/link3.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link4", "name": "link4", "mesh": "meshes_fixend/link4.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link5", "name": "link5", "mesh": "meshes_fixend/link5.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link6", "name": "link6", "mesh": "meshes_fixend/link6.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "end_link", "name": "end_link", "mesh": "meshes_fixend/end_link.STL", "albedo_factor": [160, 160, 160, 255] }
+  ]
+}

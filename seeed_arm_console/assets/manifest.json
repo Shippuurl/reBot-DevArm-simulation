@@ -1,0 +1,446 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-29",
+  "purpose": "Seeed reBot Arm B601 assets for Rerun, MuJoCo and egui",
+  "models": [
+    {
+      "id": "b601_dm_gripper",
+      "model": "B601-DM",
+      "variant": "with_gripper",
+      "urdf": "robot/b601_dm/urdf/reBot_B601_DM_with_gripper.urdf",
+      "mesh_dir": "robot/b601_dm/meshes",
+      "source_package_uri": "package://rebotarm_bringup/description/meshes_b601_gripper/",
+      "rerun_role": "link meshes + TF + joint states"
+    },
+    {
+      "id": "b601_dm_fixend",
+      "model": "B601-DM",
+      "variant": "fixend",
+      "urdf": "robot/b601_dm/urdf/reBot-DevArm_fixend.urdf",
+      "mesh_dir": "robot/b601_dm/meshes_fixend",
+      "source_package_uri": "package://rebotarm_bringup/description/meshes/",
+      "rerun_role": "link meshes + TF + joint states (fixed end)"
+    },
+    {
+      "id": "b601_rs",
+      "model": "B601-RS",
+      "variant": "arm_rs_asm_v3",
+      "urdf": "robot/b601_rs/urdf/00-arm-rs_asm-v3.urdf",
+      "mesh_dir": "robot/b601_rs/meshes",
+      "source_package_uri": "package://rebotarm_bringup/description/meshes_rs/",
+      "mujoco_model": "robot/b601_rs/mujoco/00_arm_rs_asm_v3.xml",
+      "rerun_role": "link meshes + TF + joint states"
+    }
+  ],
+  "mujoco": {
+    "base_model": "robot/b601_rs/mujoco/00_arm_rs_asm_v3.xml",
+    "scenes": [
+      "robot/b601_rs/mujoco/scene.xml",
+      "robot/b601_rs/mujoco/rs_grasp_scene.xml"
+    ],
+    "mesh_dir_from_xml": "../meshes/",
+    "units": {
+      "angle": "radian",
+      "length": "meter",
+      "timestep": "second"
+    },
+    "local_adaptations": [
+      "00_arm_rs_asm_v3.xml meshdir changed to ../meshes/",
+      "rs_grasp_scene.xml include changed to local 00_arm_rs_asm_v3.xml and meshdir ../meshes/"
+    ]
+  },
+  "rerun": {
+    "geometry_format": "STL source meshes; bridge to Mesh3D or another supported 3D asset format",
+    "transform_source": "URDF joint tree plus runtime TF/joint states",
+    "package_uri_resolution": "Resolve model-specific package URI to the mesh_dir listed above",
+    "entity_tree_rule": "Use stable link paths for static geometry and time-indexed Transform3D for motion"
+  },
+  "egui": {
+    "image_assets": [
+      "ui/rebot_arm_b601.png",
+      "ui/reBot-DevArm-banner.png"
+    ],
+    "font_assets": [
+      "fonts/Inter-Regular.ttf",
+      "fonts/Inter-SemiBold.ttf",
+      "fonts/Inter-Bold.ttf",
+      "fonts/JetBrainsMono-Regular.ttf",
+      "fonts/JetBrainsMono-Medium.ttf",
+      "fonts/NotoSansSC-VF.ttf"
+    ],
+    "design_tokens": "design/tokens.json",
+    "icon_policy": "Brand-neutral Lucide-inspired painter icons in src/icons.rs; no icon font dependency"
+  },
+  "sources": [
+    {
+      "name": "reBot-DevArm",
+      "url": "https://gitee.com/long-yongjun9930/reBot-DevArm",
+      "commit": "b868a7f38e9039a32f5a393cfedea3606efb00ed",
+      "license": "CERN-OHL-W-2.0 for hardware; text copied to licenses/reBot-DevArm-LICENSE"
+    },
+    {
+      "name": "reBotArmController_ROS2",
+      "url": "https://github.com/Seeed-Projects/reBotArmController_ROS2",
+      "commit": "e134941b71236523e831f15b470bc81186b0649f",
+      "license": "ROS package metadata declares Apache-2.0; verify upstream license text before redistribution"
+    },
+    {
+      "name": "reBot-B601-RS-for-mujoco_sim",
+      "url": "https://github.com/LAN-GER/reBot-B601-RS-for-mujoco_sim",
+      "commit": "1249cb6efdf393ba636056fc41df30dc6ba389aa",
+      "license": "Upstream README reports no LICENSE; local development only until permission is confirmed"
+    }
+  ],
+  "files": [
+    {
+      "path": "licenses/reBot-DevArm-LICENSE",
+      "bytes": 14679,
+      "sha256": "54cf85b09c46e5ba8229aec1ca631a1e4c522e1459f73c10114cf82ce40481f9"
+    },
+    {
+      "path": "robot/b601_dm/meshes_fixend/base_link.STL",
+      "bytes": 4079784,
+      "sha256": "14d98e291f5eb20ce50886fcbc99427606a46ea5cc60fe3e89326e7c45b3d73f"
+    },
+    {
+      "path": "robot/b601_dm/meshes_fixend/end_link.STL",
+      "bytes": 4933684,
+      "sha256": "153e3e4b641d01a3a358f59c6a8b3e079e5c2aef97de1f2dc1fa047407d88dd5"
+    },
+    {
+      "path": "robot/b601_dm/meshes_fixend/link1.STL",
+      "bytes": 337184,
+      "sha256": "33fc9ebe2654cc27d47edd97fb90b13d2611ed2eba734332b9110d93c24cc25d"
+    },
+    {
+      "path": "robot/b601_dm/meshes_fixend/link2.STL",
+      "bytes": 5091884,
+      "sha256": "3dc33c484f02966f43c37b38d848669d31018140a56e3ac5c9366add36cc3fa0"
+    },
+    {
+      "path": "robot/b601_dm/meshes_fixend/link3.STL",
+      "bytes": 3855084,
+      "sha256": "783383016dbe0a258bd94e7fffb66c7056c9aa9dd42b61e5abb24cb228a99035"
+    },
+    {
+      "path": "robot/b601_dm/meshes_fixend/link4.STL",
+      "bytes": 2859284,
+      "sha256": "95364d6a7008b62fe173f447219c2ce2cd2e6f0882997374cb1d8f60652c5848"
+    },
+    {
+      "path": "robot/b601_dm/meshes_fixend/link5.STL",
+      "bytes": 2259184,
+      "sha256": "19ea62cabf41394d4de0ce4437298484227f37fe5e0f99c20cea2d260ede45e8"
+    },
+    {
+      "path": "robot/b601_dm/meshes_fixend/link6.STL",
+      "bytes": 1994484,
+      "sha256": "6315a8ae1c03a2806f9e3ade2ca7e8740f34dfe05898fc02b620b0a2e459546a"
+    },
+    {
+      "path": "robot/b601_dm/meshes/base_link.STL",
+      "bytes": 3898684,
+      "sha256": "22641c079014fe968702393f61e7f7f1a8f80c6c1df45a61e31545f6eaff3b65"
+    },
+    {
+      "path": "robot/b601_dm/meshes/gripper_left.STL",
+      "bytes": 2119684,
+      "sha256": "c4e0de70f776b3573d975a6eaaa746cccbe57c2d5bb12501da8889979d3af268"
+    },
+    {
+      "path": "robot/b601_dm/meshes/gripper_link.STL",
+      "bytes": 2676384,
+      "sha256": "a826e164d420a6922e8ad5ee27813f39fa809f6e4fdf39b42fd8a59e7d12e847"
+    },
+    {
+      "path": "robot/b601_dm/meshes/gripper_right.STL",
+      "bytes": 2119684,
+      "sha256": "615b119c0bb97a032badd5882144e4a2a50c905a3e071af1fa28b83bfe9b1b65"
+    },
+    {
+      "path": "robot/b601_dm/meshes/link1.STL",
+      "bytes": 499084,
+      "sha256": "9db637a63d37bc2c6398ea5b8ba32fb54122c637d5d77dc134c8782839b654cd"
+    },
+    {
+      "path": "robot/b601_dm/meshes/link2.STL",
+      "bytes": 5992184,
+      "sha256": "def0d9d82343dccc1eff0d9d5572eca49b3c134db9807ca12302b99d153df65e"
+    },
+    {
+      "path": "robot/b601_dm/meshes/link3.STL",
+      "bytes": 4209984,
+      "sha256": "ca14d73b5d63f352051f440f4cabc3989567f25ee9d19e7dd749f2d6f0d0561d"
+    },
+    {
+      "path": "robot/b601_dm/meshes/link4.STL",
+      "bytes": 2579684,
+      "sha256": "061909364f20bb387f9ff82cb80e506af959142f9fbb4a39dc86fc8244ee768a"
+    },
+    {
+      "path": "robot/b601_dm/meshes/link5.STL",
+      "bytes": 2119384,
+      "sha256": "3a32006227c1f9dbc70e77e07055c61e3f195f1054d4d2eb480262f0873bf001"
+    },
+    {
+      "path": "robot/b601_dm/meshes/link6.STL",
+      "bytes": 1248184,
+      "sha256": "c586a7d0b8345d2cd32eab7dfd2e334aba56e83f582a6298d41bbf718f2ebef1"
+    },
+    {
+      "path": "robot/b601_dm/urdf/reBot_B601_DM_with_gripper.urdf",
+      "bytes": 14399,
+      "sha256": "f808f6f0d33274b226c7e59db6d27d1498feb7e0955a94fe30f3f215a7425fa6"
+    },
+    {
+      "path": "robot/b601_dm/urdf/reBot-DevArm_fixend.urdf",
+      "bytes": 10592,
+      "sha256": "4171bdf8d12102b1a7c79a560ae2ed817af867126c13c72e6e58ec5b2124aa7b"
+    },
+    {
+      "path": "robot/b601_rs/meshes/base_link.STL",
+      "bytes": 4090884,
+      "sha256": "af1df69639fb1f1022ad94ca1537157f8dbef379ec37fd75d8901d30d4061cbe"
+    },
+    {
+      "path": "robot/b601_rs/meshes/cnc_left.STL",
+      "bytes": 127284,
+      "sha256": "8f8ed951fad05dd5e3fec04f697864a64e394db9138d72fdfa62f8f047388aa6"
+    },
+    {
+      "path": "robot/b601_rs/meshes/cnc_right.STL",
+      "bytes": 127284,
+      "sha256": "d7be82297465675b19b5651f3e25c5bab82d33a20bab2aa48ddffbbcf8c65072"
+    },
+    {
+      "path": "robot/b601_rs/meshes/cnc2.STL",
+      "bytes": 1147884,
+      "sha256": "fa41ae81c68a7ce3ad49c3680ac7cde88fa5d02984298846f3c6fa6a28d009db"
+    },
+    {
+      "path": "robot/b601_rs/meshes/cnc3.STL",
+      "bytes": 3364484,
+      "sha256": "4018cd61ac7d6dd97cfe45cb7b0480d0275476757c2afc61bf05bd287fad3ca4"
+    },
+    {
+      "path": "robot/b601_rs/meshes/cnc4.STL",
+      "bytes": 1431284,
+      "sha256": "6a85571eaedbbf06a799a89fd56d9cf3778070cd852ec6cb6da285ec34a35dec"
+    },
+    {
+      "path": "robot/b601_rs/meshes/cnc5.STL",
+      "bytes": 305384,
+      "sha256": "1772159cd66b600c0ed0db67c7f5c33865ee09e9b2dae02339d95d9cef158489"
+    },
+    {
+      "path": "robot/b601_rs/meshes/cnc7.STL",
+      "bytes": 204384,
+      "sha256": "2d6088744c7d5195fc3f78d930dba9a9843ad208b2a6243fade1aaf17fecc782"
+    },
+    {
+      "path": "robot/b601_rs/meshes/gripper_end.STL",
+      "bytes": 4037884,
+      "sha256": "d52ed4bb37754fa9d57cc21b4be3b9f90373b6d5594c521e7c3cd3a1adf5ba62"
+    },
+    {
+      "path": "robot/b601_rs/meshes/gripper_left.STL",
+      "bytes": 862384,
+      "sha256": "1f604d582dc23814948c5b07c034672690b78b76acad25f3650d90e3fa8165cd"
+    },
+    {
+      "path": "robot/b601_rs/meshes/gripper_right.STL",
+      "bytes": 862384,
+      "sha256": "b6b5c4df5b71c24e382c602daa977884e4fa1aaa24f7937f5a7d26dea9784aed"
+    },
+    {
+      "path": "robot/b601_rs/meshes/link1.STL",
+      "bytes": 1582084,
+      "sha256": "60860556dd91b15eff0bb7d3a5bffcf4b34ac98156c542f203ad6ce755be2d1d"
+    },
+    {
+      "path": "robot/b601_rs/meshes/link2.STL",
+      "bytes": 6477584,
+      "sha256": "f3653afa47f7f2ee9733416e56c52745b5eaafd23ca6c84360dffd440e12668d"
+    },
+    {
+      "path": "robot/b601_rs/meshes/link3.STL",
+      "bytes": 8212984,
+      "sha256": "3d6502345c14bd2d6c5b9c394672efdaa2b787cc81a0bed23a0bde574e787a28"
+    },
+    {
+      "path": "robot/b601_rs/meshes/link4.STL",
+      "bytes": 5179084,
+      "sha256": "431e5e7365ba31df598207dee6d48ff3051ec32f6d42dcae8e3b25e7807617c4"
+    },
+    {
+      "path": "robot/b601_rs/meshes/link5.STL",
+      "bytes": 4043384,
+      "sha256": "e8888083f0cf597e7f0afb7b273b81f55df7ef45eee706dbf840c9ef365c7b1e"
+    },
+    {
+      "path": "robot/b601_rs/meshes/link6.STL",
+      "bytes": 1224984,
+      "sha256": "29a7809bde57f21b536588e78e66bec137f1fbe50308b71ffa842b6efbb109fd"
+    },
+    {
+      "path": "robot/b601_rs/meshes/motor_2_3.STL",
+      "bytes": 4571184,
+      "sha256": "509d445fa6cade769d0c9865b5ae7e6d7ae7cf05496ade798e293edc834f9725"
+    },
+    {
+      "path": "robot/b601_rs/meshes/motor_4.STL",
+      "bytes": 4205884,
+      "sha256": "2251e479b009b2c1335e0c932dd44bf3f170cf55fec1febd944ae087bbbcac22"
+    },
+    {
+      "path": "robot/b601_rs/meshes/motor_5.STL",
+      "bytes": 3770584,
+      "sha256": "87a9380b8441116d1e31eafcdd2900a06eb3ad9a0858b7715b41485660af07b4"
+    },
+    {
+      "path": "robot/b601_rs/meshes/motor_6.STL",
+      "bytes": 3679784,
+      "sha256": "a488f0f5d5727b2086f1511570f06a722b6e6312894ba12d7eacd0614208d527"
+    },
+    {
+      "path": "robot/b601_rs/meshes/motor_7.STL",
+      "bytes": 3783084,
+      "sha256": "4e019eae9e44376b9d876eae995535bcca7761e4083a3ed0d8705d25cffa9dc1"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla_left.STL",
+      "bytes": 735184,
+      "sha256": "0e774ab0bf2975792982adf646465c7ed1ff35b9ed0ad9bf3fb14c9d7480ebef"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla_right.STL",
+      "bytes": 735184,
+      "sha256": "43556446abbbecd847bb09a4dc13d4ef2aa266a9ba904e5ac9ccff89a3c8280d"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla2_black.STL",
+      "bytes": 655884,
+      "sha256": "3334ffafff11e43f2bc6102e734e2fe0b61369ae5dd657163c01e005f5fa753d"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla2_green.STL",
+      "bytes": 102884,
+      "sha256": "3c1445d686ec45637f2ca16546b23c06a1671ae4266b7df0ae00671e1b093431"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla3_black_without_seeed_badge.STL",
+      "bytes": 243284,
+      "sha256": "3cc986a724bb7e22acba8b2c905fcd6d0d2d7f9b1094e64a4960f24cc94f146e"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla3_black.STL",
+      "bytes": 539984,
+      "sha256": "c016b5474dcb126363ee3e9ff74441de7cc6414f2b38eccee57c5e824ae59d9e"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla3_green.STL",
+      "bytes": 102884,
+      "sha256": "7aee9689f19b6cb697bc81e2005b2652a1fad2887798108d96500bd82796b212"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla3_seeed_badge_with_counters.STL",
+      "bytes": 296784,
+      "sha256": "24f7fb2daafafc408eda5a23b7a71cad6a0de65533a2d8ea0703916bf3857a1f"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla3_seeed_wordmark_backing.STL",
+      "bytes": 20084,
+      "sha256": "b837592ca2910576526e3806f0c96c19e3eac8ba197e38149f1e7935932b4208"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla5_green.STL",
+      "bytes": 58384,
+      "sha256": "d8810ec3fe0a9cb56d5fb9939d6f826b8cc62dd2691131aa44ccf9f9d01cc547"
+    },
+    {
+      "path": "robot/b601_rs/meshes/pla7_green.STL",
+      "bytes": 50584,
+      "sha256": "00b3c3d51f6f756ab96fc65a229610b952ce4a8be927e2ec404bacbcf43f4afc"
+    },
+    {
+      "path": "robot/b601_rs/mujoco/00_arm_rs_asm_v3.xml",
+      "bytes": 13889,
+      "sha256": "c64a948f8be1ff8729f4b60d344bbd4fc7fb2b35603a655bdb1a2b9312f2f331"
+    },
+    {
+      "path": "robot/b601_rs/mujoco/rs_grasp_scene.xml",
+      "bytes": 3054,
+      "sha256": "24ffffdcd21bfd1a69089060f03ae2a75680fcb22674f0963f0ca009bcd24b6f"
+    },
+    {
+      "path": "robot/b601_rs/mujoco/scene.xml",
+      "bytes": 2477,
+      "sha256": "ceb6ef01cdca851bc48e28ca15691a2d3739131f21dc888787f2be435923c2e7"
+    },
+    {
+      "path": "robot/b601_rs/urdf/00-arm-rs_asm-v3.urdf",
+      "bytes": 19438,
+      "sha256": "807c17cda3a5193fc4aadad5b73aebecc16e53e60707b3fa8901c90ac48ca551"
+    },
+    {
+      "path": "ui/rebot_arm_b601.png",
+      "bytes": 1908242,
+      "sha256": "b01a8e129d78a1830d6eaf1d236289ce2306a401a1f7c23e026c52400b4391b7"
+    },
+    {
+      "path": "ui/reBot-DevArm-banner.png",
+      "bytes": 8127167,
+      "sha256": "c381ae6c1f5a3bb29d1cfa87e5982c1a64a51e9df530623a58a395f9ec01a826"
+    },
+    {
+      "path": "fonts/Inter-Bold.ttf",
+      "bytes": 316584,
+      "sha256": "412C068EAB6F36E6807D630FF89127165E8E4D3E8653434CDFB56B60CDCC3A32"
+    },
+    {
+      "path": "fonts/Inter-Regular.ttf",
+      "bytes": 310252,
+      "sha256": "3127F0B873387EE37E2040135A06E9E9C05030F509EB63689529BECF28B50384"
+    },
+    {
+      "path": "fonts/Inter-SemiBold.ttf",
+      "bytes": 316220,
+      "sha256": "B0B540E69BF6717016E33874670E09ACF4BFFC2CA3F4C1CF174A4FF696308C65"
+    },
+    {
+      "path": "fonts/JetBrainsMono-Medium.ttf",
+      "bytes": 270316,
+      "sha256": "D16E6DC99672734698D629705F617C79F6EB6040F5113EFE3A145204DC988109"
+    },
+    {
+      "path": "fonts/JetBrainsMono-Regular.ttf",
+      "bytes": 270224,
+      "sha256": "E6FD0D7E91550B3ED2B735D4312474362C4716EDC4FC0577A0F61ED782D5AED1"
+    },
+    {
+      "path": "fonts/NotoSansSC-VF.ttf",
+      "bytes": 17773244,
+      "sha256": "763146584CF0710223441356B4395E279021B0806C196614377A7A0174AE074A"
+    },
+    {
+      "path": "design/README.md",
+      "bytes": 682,
+      "sha256": "28B4AF09D08F55688C060E604475000752ECEFC22E7FD954DBDD4073A7682E2B"
+    },
+    {
+      "path": "design/tokens.json",
+      "bytes": 841,
+      "sha256": "827F987040E5619807061204344081A75F298E32A0B351EAC7C4FE137023C959"
+    },
+    {
+      "path": "icons/README.md",
+      "bytes": 258,
+      "sha256": "A2CB099BD81E62D6008F1CB7BF7A5DA0ED0FECAFA8D6851853EADFAA2808999F"
+    },
+    {
+      "path": "licenses/FONTS.md",
+      "bytes": 886,
+      "sha256": "1E51530E5A9AADA17C84AE3FDB70FE7AB520640ABE5CFEDA55BF287FF1900FAA"
+    }
+  ]
+}

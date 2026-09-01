@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer",
+    "vadimcn.vscode-lldb",
+    "ms-vscode.cpptools-extension-pack",
+    "ms-vscode.cmake-tools",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "redhat.vscode-xml"
+  ]
+}

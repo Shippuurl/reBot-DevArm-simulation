@@ -1,0 +1,59 @@
+{
+  "folders": [
+    { "name": "simulation-console", "path": "seeed_arm_console" },
+    { "name": "robot-model-reference", "path": "reBot-DevArm/hardware" }
+  ],
+  "settings": {
+    "files.watcherExclude": {
+      "**/target/**": true,
+      "**/build/**": true,
+      "**/.colcon/**": true,
+      "**/install/**": true,
+      "**/log/**": true
+    },
+    "search.exclude": {
+      "**/target/**": true,
+      "**/build/**": true,
+      "**/install/**": true,
+      "**/log/**": true,
+      "**/*.stl": true,
+      "**/*.step": true,
+      "**/*.stp": true
+    },
+    "files.exclude": {
+      "**/target": true,
+      "**/build-*": true,
+      "**/.colcon": true,
+      "**/install": true,
+      "**/log": true
+    },
+    "rust-analyzer.linkedProjects": ["${workspaceFolder:simulation-console}/Cargo.toml"],
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.check.extraArgs": ["--all-targets"],
+    "cmake.sourceDirectory": "${workspaceFolder:simulation-console}/cpp/mock_gateway",
+    "cmake.buildDirectory": "${workspaceFolder:simulation-console}/cpp/mock_gateway/build-vscode",
+    "python.analysis.extraPaths": ["/opt/ros/jazzy/lib/python3.12/site-packages"],
+    "terminal.integrated.defaultProfile.linux": "zsh",
+    "editor.formatOnSave": true,
+    "editor.rulers": [100],
+    "files.trimTrailingWhitespace": true
+    ,"files.associations": {
+      "*.urdf": "xml",
+      "*.xacro": "xml",
+      "*.sdf": "xml",
+      "*.mjcf": "xml"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "rust-lang.rust-analyzer",
+      "ms-vscode.cpptools-extension-pack",
+      "ms-vscode.cmake-tools",
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "twxs.cmake",
+      "redhat.vscode-xml",
+      "yzhang.markdown-all-in-one"
+    ]
+  }
+}

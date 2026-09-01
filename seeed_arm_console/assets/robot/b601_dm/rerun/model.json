@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "model": "b601_dm_with_gripper",
+  "units": "m",
+  "coordinate_system": "right_handed_z_up",
+  "urdf": "urdf/reBot_B601_DM_with_gripper.urdf",
+  "visuals": [
+    { "link": "base_link", "name": "base_link", "mesh": "meshes/base_link.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link1", "name": "link1", "mesh": "meshes/link1.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link2", "name": "link2", "mesh": "meshes/link2.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link3", "name": "link3", "mesh": "meshes/link3.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link4", "name": "link4", "mesh": "meshes/link4.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link5", "name": "link5", "mesh": "meshes/link5.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "link6", "name": "link6", "mesh": "meshes/link6.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "gripper_link", "name": "gripper_link", "mesh": "meshes/gripper_link.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "gripper_left", "name": "gripper_left", "mesh": "meshes/gripper_left.STL", "albedo_factor": [160, 160, 160, 255] },
+    { "link": "gripper_right", "name": "gripper_right", "mesh": "meshes/gripper_right.STL", "albedo_factor": [160, 160, 160, 255] }
+  ]
+}

@@ -1,0 +1,273 @@
+//! 生成一份可直接在 Win11 Rerun Viewer 中打开的最小记录。
+//!
+//! 用法：`cargo run --features rerun-recording --bin rerun_sample -- [输出.rrd]`
+
+#[cfg(not(feature = "rerun-recording"))]
+fn main() {
+    eprintln!("请使用 --features rerun-recording 编译此工具");
+}
+
+#[cfg(feature = "rerun-recording")]
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    use std::{fs, path::PathBuf};
+
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct ModelManifest {
+        urdf: String,
+        visuals: Vec<ModelVisual>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct ModelVisual {
+        link: String,
+        name: String,
+        mesh: String,
+        #[serde(default)]
+        albedo_factor: Option<[u8; 4]>,
+    }
+
+    let output = std::env::args()
+        .nth(1)
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("recordings/sample.rrd"));
+    if let Some(parent) = output
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent)?;
+    }
+
+    let recording = rerun::RecordingStreamBuilder::new("robot_workspace_sample").save(&output)?;
+    recording.log_static("robot", &rerun::ViewCoordinates::RIGHT_HAND_Z_UP())?;
+
+    let model_root = std::env::var_os("ROBOT_MODEL_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("assets/robot/b601_rs"));
+    let manifest_path = resolve_model_path(
+        &model_root,
+        &std::env::var("ROBOT_MODEL_MANIFEST").unwrap_or_else(|_| "rerun/model.json".to_owned()),
+    )?;
+    let manifest: ModelManifest = serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
+    recording.log_static("robot/frames", &rerun::CoordinateFrame::new("world"))?;
+    let mut linked_frames = std::collections::BTreeSet::new();
+    for (index, visual) in manifest.visuals.iter().enumerate() {
+        let path = resolve_model_path(&model_root, &visual.mesh)?;
+        let mut asset = rerun::Asset3D::from_file_path(&path)?;
+        if let Some(color) = visual.albedo_factor {
+            asset = asset.with_albedo_factor(u32::from_be_bytes(color));
+        }
+        recording.log_static(
+            format!(
+                "robot/frames/{}/model/{index:02}_{}",
+                visual.link, visual.name
+            ),
+            &asset,
+        )?;
+        if linked_frames.insert(visual.link.clone()) {
+            recording.log_static(
+                format!("robot/frames/{}", visual.link),
+                &rerun::CoordinateFrame::new(frame_id(&visual.link)),
+            )?;
+        }
+    }
+    recording.log_static(
+        "robot/model/manifest",
+        &rerun::TextDocument::from_file_path(&manifest_path)?,
+    )?;
+    let urdf_path = resolve_model_path(&model_root, &manifest.urdf)?;
+    recording.log_static(
+        "robot/model/urdf",
+        &rerun::TextDocument::from_file_path(urdf_path)?,
+    )?;
+    let scene_path = model_root.join("mujoco/scene.xml");
+    if scene_path.is_file() {
+        recording.log_static(
+            "robot/model/mujoco_scene",
+            &rerun::TextDocument::from_file_path(scene_path)?,
+        )?;
+    }
+
+    for frame in 0..120_u64 {
+        let t = frame as f32 * 0.02;
+        recording.set_time_sequence("frame", frame as i64);
+        let positions: [f32; 6] =
+            std::array::from_fn(|joint| (t * 1.4 + joint as f32 * 0.31).sin() * 0.24);
+        let velocities: [f32; 6] =
+            std::array::from_fn(|joint| (t * 1.4 + joint as f32 * 0.31).cos() * 0.336);
+        recording.log(
+            "robot/frames/base_link",
+            &rerun::Transform3D::from_translation_rotation(
+                [0.0, 0.0, 0.0],
+                rerun::Quaternion::from_xyzw([0.0, 0.0, 0.0, 1.0]),
+            )
+            .with_parent_frame("world")
+            .with_child_frame(frame_id("base_link")),
+        )?;
+        // The sample uses the actual joint origins/axes from the RS URDF so
+        // that the recorded meshes line up with the real model instead of
+        // drawing a visually plausible but geometrically wrong chain.
+        let origins = [
+            (
+                [-0.00034283, -0.00098683, 0.075],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, -1.0],
+            ),
+            (
+                [0.020343, 0.027237, 0.07],
+                [-1.5708, 0.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ),
+            ([-0.236, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, -1.0]),
+            (
+                [0.228, -0.072746, 0.0045],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, -1.0],
+            ),
+            (
+                [0.087, -0.048, -0.03075],
+                [-1.5708, 0.0, 0.0],
+                [0.0, 0.0, -1.0],
+            ),
+            ([0.0365, 0.0, 0.048], [0.0, 1.5708, 0.0], [0.0, 0.0, -1.0]),
+        ];
+        for (joint, (translation, rpy, axis)) in origins.iter().enumerate() {
+            let parent = if joint == 0 {
+                "base_link".to_owned()
+            } else {
+                format!("link{joint}")
+            };
+            let child = format!("link{}", joint + 1);
+            recording.log(
+                format!("robot/frames/{child}"),
+                &rerun::Transform3D::from_translation_rotation(
+                    *translation,
+                    rerun::Quaternion::from_xyzw(quat_multiply(
+                        quat_from_rpy(rpy[0], rpy[1], rpy[2]),
+                        quat_axis_angle(*axis, positions[joint]),
+                    )),
+                )
+                .with_parent_frame(frame_id(&parent))
+                .with_child_frame(frame_id(&child)),
+            )?;
+        }
+        let end_rotation = quat_from_rpy(3.1416, -1.5708, 0.0);
+        recording.log(
+            "robot/frames/gripper_end",
+            &rerun::Transform3D::from_translation_rotation(
+                [0.0, 0.0, 0.16621],
+                rerun::Quaternion::from_xyzw(end_rotation),
+            )
+            .with_parent_frame(frame_id("link6"))
+            .with_child_frame(frame_id("gripper_end")),
+        )?;
+        recording.log(
+            "robot/frames/gripper_left",
+            &rerun::Transform3D::from_translation_rotation(
+                [-0.041939, -0.0000734, 0.0],
+                rerun::Quaternion::from_xyzw([0.5, -0.5, 0.5000018, 0.4999982]),
+            )
+            .with_parent_frame(frame_id("gripper_end"))
+            .with_child_frame(frame_id("gripper_left")),
+        )?;
+        recording.log(
+            "robot/frames/gripper_right",
+            &rerun::Transform3D::from_translation_rotation(
+                [-0.041939, 0.0000734, 0.0],
+                rerun::Quaternion::from_xyzw([-0.5, -0.5, -0.5000018, 0.4999982]),
+            )
+            .with_parent_frame(frame_id("gripper_end"))
+            .with_child_frame(frame_id("gripper_right")),
+        )?;
+        for joint in 0..6 {
+            recording.log(
+                format!("robot/joints/joint_{}/position", joint + 1),
+                &rerun::Scalars::single(positions[joint]),
+            )?;
+            recording.log(
+                format!("robot/joints/joint_{}/velocity", joint + 1),
+                &rerun::Scalars::single(velocities[joint]),
+            )?;
+        }
+        for (joint, position) in positions.iter().copied().enumerate() {
+            recording.log(
+                format!("robot/trajectory/actual/joint_{}", joint + 1),
+                &rerun::Scalars::single(position),
+            )?;
+        }
+    }
+    drop(recording);
+    let bytes = fs::metadata(&output)?.len();
+    println!("recording={} bytes={bytes}", output.display());
+    Ok(())
+}
+
+#[cfg(feature = "rerun-recording")]
+fn frame_id(value: &str) -> String {
+    format!("robot::{value}")
+}
+
+#[cfg(feature = "rerun-recording")]
+fn quat_from_rpy(roll: f32, pitch: f32, yaw: f32) -> [f32; 4] {
+    let (sr, cr) = (roll * 0.5).sin_cos();
+    let (sp, cp) = (pitch * 0.5).sin_cos();
+    let (sy, cy) = (yaw * 0.5).sin_cos();
+    [
+        sr * cp * cy - cr * sp * sy,
+        cr * sp * cy + sr * cp * sy,
+        cr * cp * sy - sr * sp * cy,
+        cr * cp * cy + sr * sp * sy,
+    ]
+}
+
+#[cfg(feature = "rerun-recording")]
+fn quat_axis_angle(axis: [f32; 3], angle: f32) -> [f32; 4] {
+    let norm = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
+    if norm <= f32::EPSILON {
+        return [0.0, 0.0, 0.0, 1.0];
+    }
+    let (sin_half, cos_half) = (angle * 0.5).sin_cos();
+    [
+        axis[0] / norm * sin_half,
+        axis[1] / norm * sin_half,
+        axis[2] / norm * sin_half,
+        cos_half,
+    ]
+}
+
+#[cfg(feature = "rerun-recording")]
+fn quat_multiply(lhs: [f32; 4], rhs: [f32; 4]) -> [f32; 4] {
+    [
+        lhs[3] * rhs[0] + lhs[0] * rhs[3] + lhs[1] * rhs[2] - lhs[2] * rhs[1],
+        lhs[3] * rhs[1] - lhs[0] * rhs[2] + lhs[1] * rhs[3] + lhs[2] * rhs[0],
+        lhs[3] * rhs[2] + lhs[0] * rhs[1] - lhs[1] * rhs[0] + lhs[2] * rhs[3],
+        lhs[3] * rhs[3] - lhs[0] * rhs[0] - lhs[1] * rhs[1] - lhs[2] * rhs[2],
+    ]
+}
+
+#[cfg(feature = "rerun-recording")]
+fn resolve_model_path(
+    root: &std::path::Path,
+    relative: &str,
+) -> Result<std::path::PathBuf, std::io::Error> {
+    let relative_path = std::path::Path::new(relative);
+    if relative_path.is_absolute()
+        || relative_path
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("model path must stay inside asset root: {relative}"),
+        ));
+    }
+    let path = root.join(relative_path);
+    if !path.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("model file not found: {}", path.display()),
+        ));
+    }
+    Ok(path)
+}

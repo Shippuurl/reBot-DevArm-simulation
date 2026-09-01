@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "Rust: check", "type": "shell", "command": "cargo check --all-targets", "options": { "cwd": "${workspaceFolder}" }, "problemMatcher": "$rustc" },
+    { "label": "Rust: test", "type": "shell", "command": "cargo test", "options": { "cwd": "${workspaceFolder}" }, "problemMatcher": "$rustc" },
+    { "label": "Rerun: sample", "type": "shell", "command": "cargo run --features rerun-recording --bin rerun_sample -- recordings/dev.rrd", "options": { "cwd": "${workspaceFolder}" }, "problemMatcher": "$rustc" },
+    { "label": "CMake: configure gateway", "type": "shell", "command": "cmake -S cpp/mock_gateway -B cpp/mock_gateway/build-vscode -DCMAKE_BUILD_TYPE=Debug", "options": { "cwd": "${workspaceFolder}" }, "problemMatcher": "$gcc" },
+    { "label": "CMake: build gateway", "type": "shell", "command": "cmake --build cpp/mock_gateway/build-vscode -j", "options": { "cwd": "${workspaceFolder}" }, "dependsOn": "CMake: configure gateway", "problemMatcher": "$gcc" },
+    { "label": "ROS2: source Jazzy", "type": "shell", "command": "source /opt/ros/jazzy/setup.bash && printenv ROS_DISTRO", "options": { "cwd": "${workspaceFolder}", "shell": { "executable": "/bin/bash", "args": ["-c"] } }, "problemMatcher": [] }
+  ]
+}

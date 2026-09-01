@@ -1,0 +1,32 @@
+services:
+  arm-console-gateway:
+    build:
+      context: .
+      dockerfile: cpp/mock_gateway/Dockerfile
+      args:
+        ROS_IMAGE: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/osrf/ros:jazzy-desktop-full
+        MUJOCO_VERSION: 3.12.0
+        MUJOCO_SHA256: a9367911e6d5eaeade17c2197304687421c1fc932cdf7bcd4cb8cfaf0374dcb2
+        MUJOCO_URL: ${MUJOCO_URL:-https://github.com/google-deepmind/mujoco/releases/download/3.12.0/mujoco-3.12.0-linux-x86_64.tar.gz}
+    image: arm-console-gateway:mujoco-3.12.0
+    working_dir: /work/seeed_arm_console/cpp/mock_gateway
+    volumes:
+      - type: bind
+        source: .
+        target: /work/seeed_arm_console
+    ports:
+      - "127.0.0.1:50051:50051"
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      ROS_DISTRO: jazzy
+    command:
+      - bash
+      - -lc
+      - >-
+        unset DISPLAY WAYLAND_DISPLAY QT_X11_NO_MITSHM LIBGL_ALWAYS_INDIRECT;
+        cmake -S . -B /tmp/arm-console-gateway-build
+        -DARM_CONSOLE_WITH_MUJOCO=ON -DMUJOCO_ROOT=/opt/mujoco;
+        cmake --build /tmp/arm-console-gateway-build --config Release -j2;
+        exec /tmp/arm-console-gateway-build/arm_console_mock_gateway
+        50051 /work/seeed_arm_console/assets/robot/b601_rs/mujoco/scene.xml

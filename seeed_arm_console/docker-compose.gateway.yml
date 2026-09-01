@@ -1,0 +1,24 @@
+services:
+  arm-console-gateway:
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/osrf/ros:jazzy-desktop-full
+    container_name: arm-console-gateway
+    working_dir: /work/seeed_arm_console/cpp/mock_gateway
+    command:
+      - bash
+      - -lc
+      - >-
+        unset DISPLAY WAYLAND_DISPLAY QT_X11_NO_MITSHM LIBGL_ALWAYS_INDIRECT;
+        cmake -S . -B /tmp/arm-console-gateway-build;
+        cmake --build /tmp/arm-console-gateway-build --config Release -j2;
+        exec /tmp/arm-console-gateway-build/arm_console_mock_gateway 50051
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      ROS_DISTRO: jazzy
+    volumes:
+      - type: bind
+        source: .
+        target: /work/seeed_arm_console
+    ports:
+      - "127.0.0.1:50051:50051"
+    restart: unless-stopped

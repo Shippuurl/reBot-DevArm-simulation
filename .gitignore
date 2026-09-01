@@ -1,0 +1,9 @@
+.env
+target/
+**/target/
+**/build-*/
+**/recordings/*.rrd
+**/__pycache__/
+.vscode/*.log
+corgol.md
+本机画像.md

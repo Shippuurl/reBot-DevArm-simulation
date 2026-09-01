@@ -1,0 +1,246 @@
+use eframe::{run_native, App, CreationContext};
+use egui::{CentralPanel, Panel, TextEdit};
+use egui_graphs::{generate_simple_digraph, DefaultGraphView, Graph, SettingsInteraction};
+use node::NodeShapeFlex;
+use petgraph::{
+    stable_graph::{DefaultIx, EdgeIndex, NodeIndex},
+    Directed,
+};
+
+pub struct FlexNodesApp {
+    g: Graph<(), (), Directed, DefaultIx, NodeShapeFlex>,
+    label_input: String,
+    selected_node: Option<NodeIndex>,
+    selected_edge: Option<EdgeIndex>,
+}
+
+impl FlexNodesApp {
+    fn new(_: &CreationContext<'_>) -> Self {
+        let g = generate_simple_digraph();
+        Self {
+            g: Graph::from(&g),
+            label_input: String::default(),
+            selected_node: Option::default(),
+            selected_edge: Option::default(),
+        }
+    }
+
+    fn read_data(&mut self) {
+        if !self.g.selected_nodes().is_empty() {
+            let idx = self.g.selected_nodes().first().unwrap();
+            self.selected_node = Some(*idx);
+            self.selected_edge = None;
+            self.label_input = self.g.node(*idx).unwrap().label();
+        }
+        if !self.g.selected_edges().is_empty() {
+            let idx = self.g.selected_edges().first().unwrap();
+            self.selected_edge = Some(*idx);
+            self.selected_node = None;
+            self.label_input = self.g.edge(*idx).unwrap().label();
+        }
+    }
+
+    fn render(&mut self, ui: &mut egui::Ui) {
+        Panel::right("right_panel").show(ui, |ui| {
+            ui.label("Select a node to change its label");
+            ui.add_enabled_ui(
+                self.selected_node.is_some() || self.selected_edge.is_some(),
+                |ui| {
+                    TextEdit::singleline(&mut self.label_input)
+                        .hint_text("select node or edge")
+                        .show(ui)
+                },
+            );
+            if ui.button("reset").clicked() {
+                self.reset(ui);
+            }
+        });
+        CentralPanel::default().show(ui, |ui| {
+            DefaultGraphView::new()
+                .with_interactions(
+                    &SettingsInteraction::default().with_node_selection_enabled(true),
+                )
+                .show(ui, &mut self.g);
+        });
+    }
+
+    fn update_data(&mut self) {
+        if self.selected_node.is_none() && self.selected_edge.is_none() {
+            return;
+        }
+
+        if let Some(node_index) = self.selected_node {
+            if node_index.index().to_string() == self.label_input {
+                return;
+            }
+
+            self.g
+                .node_mut(node_index)
+                .unwrap()
+                .set_label(self.label_input.clone());
+        }
+
+        if let Some(edge_index) = self.selected_edge {
+            if edge_index.index().to_string() == self.label_input {
+                return;
+            }
+
+            self.g
+                .edge_mut(edge_index)
+                .unwrap()
+                .set_label(self.label_input.clone());
+        }
+    }
+
+    fn reset(&mut self, ui: &mut egui::Ui) {
+        let g = generate_simple_digraph();
+        *self = Self {
+            g: Graph::from(&g),
+            label_input: String::default(),
+            selected_node: Option::default(),
+            selected_edge: Option::default(),
+        };
+
+        egui_graphs::reset::<egui_graphs::LayoutStateRandom>(ui, None);
+    }
+}
+
+impl App for FlexNodesApp {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.read_data();
+        self.render(ui);
+        self.update_data();
+    }
+}
+
+fn main() {
+    let native_options = eframe::NativeOptions::default();
+    run_native(
+        "flex_nodes",
+        native_options,
+        Box::new(|cc| Ok(Box::new(FlexNodesApp::new(cc)))),
+    )
+    .unwrap();
+}
+
+mod node {
+    use egui::{epaint::TextShape, Color32, FontFamily, FontId, Pos2, Rect, Shape, Stroke, Vec2};
+    use egui_graphs::{DisplayNode, NodeProps};
+    use petgraph::{stable_graph::IndexType, EdgeType};
+
+    #[derive(Clone)]
+    pub struct NodeShapeFlex {
+        label: String,
+        loc: Pos2,
+
+        size_x: f32,
+        size_y: f32,
+    }
+
+    impl<N: Clone> From<NodeProps<N>> for NodeShapeFlex {
+        fn from(node_props: NodeProps<N>) -> Self {
+            Self {
+                label: node_props.label.clone(),
+                loc: node_props.location(),
+
+                size_x: 0.,
+                size_y: 0.,
+            }
+        }
+    }
+
+    impl<N: Clone, E: Clone, Ty: EdgeType, Ix: IndexType> DisplayNode<N, E, Ty, Ix> for NodeShapeFlex {
+        fn is_inside(&self, pos: Pos2) -> bool {
+            let rect = Rect::from_center_size(self.loc, Vec2::new(self.size_x, self.size_y));
+
+            rect.contains(pos)
+        }
+
+        fn closest_boundary_point(&self, dir: Vec2) -> Pos2 {
+            closest_boundary_point_rect(self.loc, self.size_x, self.size_y, dir)
+        }
+
+        fn shapes(&mut self, ctx: &egui_graphs::DrawContext) -> Vec<egui::Shape> {
+            // find node center location on the screen coordinates
+            let center = ctx.meta.canvas_to_screen_pos(self.loc);
+            let color = ctx.ctx.global_style().visuals.text_color();
+
+            // create label
+            let galley = ctx.ctx.fonts_mut(|f| {
+                f.layout_no_wrap(
+                    self.label.clone(),
+                    FontId::new(ctx.meta.canvas_to_screen_size(10.), FontFamily::Monospace),
+                    color,
+                )
+            });
+
+            // we need to offset label by half its size to place it in the center of the rect
+            let offset = Vec2::new(-galley.size().x / 2., -galley.size().y / 2.);
+
+            // create the shape and add it to the layers
+            let shape_label = TextShape::new(center + offset, galley, color);
+
+            let rect = shape_label.visual_bounding_rect();
+            let points = rect_to_points(rect);
+            let shape_rect =
+                Shape::convex_polygon(points, Color32::default(), Stroke::new(1., color));
+
+            // Keep interaction and edge snapping in canvas coordinates.
+            let zoom = ctx.meta.zoom.max(f32::EPSILON);
+            self.size_x = rect.size().x / zoom;
+            self.size_y = rect.size().y / zoom;
+
+            vec![shape_rect, shape_label.into()]
+        }
+
+        fn update(&mut self, state: &NodeProps<N>) {
+            self.label.clone_from(&state.label);
+            self.loc = state.location();
+        }
+    }
+
+    fn rect_to_points(rect: Rect) -> Vec<Pos2> {
+        let top_left = rect.min;
+        let bottom_right = rect.max;
+        let top_right = Pos2::new(bottom_right.x, top_left.y);
+        let bottom_left = Pos2::new(top_left.x, bottom_right.y);
+
+        vec![top_left, top_right, bottom_right, bottom_left]
+    }
+
+    fn closest_boundary_point_rect(center: Pos2, size_x: f32, size_y: f32, dir: Vec2) -> Pos2 {
+        let half_x = size_x * 0.5;
+        let half_y = size_y * 0.5;
+        let eps = f32::EPSILON;
+
+        if dir.length_sq() <= eps {
+            return Pos2::new(center.x + half_x, center.y);
+        }
+
+        if (dir.x.abs() * size_y) > (dir.y.abs() * size_x) {
+            // intersects left or right side
+            let x = if dir.x > 0.0 {
+                center.x + half_x
+            } else {
+                center.x - half_x
+            };
+            if dir.x.abs() <= eps {
+                return Pos2::new(x, center.y);
+            }
+            let y = center.y + dir.y / dir.x * (x - center.x);
+            Pos2::new(x, y)
+        } else {
+            // intersects top or bottom side
+            let y = if dir.y > 0.0 {
+                center.y + half_y
+            } else {
+                center.y - half_y
+            };
+            if dir.y.abs() <= eps {
+                return Pos2::new(center.x + half_x * dir.x.signum(), y);
+            }
+            let x = center.x + dir.x / dir.y * (y - center.y);
+            Pos2::new(x, y)
+        }
+    }
+}

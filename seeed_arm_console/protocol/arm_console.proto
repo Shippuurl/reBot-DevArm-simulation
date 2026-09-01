@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package arm.console.v1;
+
+// Transport contract shared by the C++ gateway and the Windows console.
+// Units: radians, radians/second, meters, meters/second, nanoseconds.
+
+service ArmGateway {
+  rpc Connect(ConnectRequest) returns (ConnectReply);
+  rpc Command(ControlCommand) returns (CommandAck);
+  rpc SubscribeTelemetry(TelemetryRequest) returns (stream TelemetryFrame);
+}
+
+message ConnectRequest {
+  string client_name = 1;
+  string protocol_version = 2;
+}
+
+message ConnectReply {
+  string session_id = 1;
+  string protocol_version = 2;
+  SourceKind source = 3;
+  uint32 dof = 4;
+}
+
+message CommandHeader {
+  string session_id = 1;
+  string command_id = 2;
+  uint64 client_timestamp_ns = 3;
+}
+
+message ControlCommand {
+  CommandHeader header = 1;
+  oneof payload {
+    EnableCommand enable = 10;
+    StopCommand stop = 11;
+    JogCommand jog = 12;
+    ExecuteTrajectoryCommand execute_trajectory = 13;
+    ResetFaultCommand reset_fault = 14;
+  }
+}
+
+message EnableCommand { bool enabled = 1; }
+message StopCommand { bool emergency = 1; }
+message ResetFaultCommand {}
+
+message JogCommand {
+  uint32 joint_index = 1;
+  double step_rad = 2;
+  double speed_limit_rad_s = 3;
+}
+
+message ExecuteTrajectoryCommand {
+  repeated TrajectoryPoint points = 1;
+  bool dry_run = 2;
+}
+
+message TrajectoryPoint {
+  uint64 time_from_start_ns = 1;
+  repeated double position_rad = 2;
+  repeated double velocity_rad_s = 3;
+}
+
+message CommandAck {
+  string command_id = 1;
+  AckStatus status = 2;
+  string reason = 3;
+}
+
+enum AckStatus {
+  ACK_STATUS_UNSPECIFIED = 0;
+  ACCEPTED = 1;
+  REJECTED = 2;
+  REQUIRES_CONFIRMATION = 3;
+}
+
+message TelemetryRequest {
+  string session_id = 1;
+  uint32 max_rate_hz = 2;
+}
+
+message TelemetryFrame {
+  uint64 sequence = 1;
+  uint64 timestamp_ns = 2;
+  SourceKind source = 3;
+  SampleQuality quality = 4;
+  repeated double joint_position_rad = 10;
+  repeated double joint_velocity_rad_s = 11;
+  repeated Transform3D tf = 12;
+  repeated TrajectoryPoint planned_trajectory = 13;
+  repeated TrajectoryPoint actual_trajectory = 14;
+  repeated ImageFrame images = 15;
+  repeated PointCloudFrame point_clouds = 16;
+}
+
+message Transform3D {
+  string parent = 1;
+  string child = 2;
+  double translation_x_m = 3;
+  double translation_y_m = 4;
+  double translation_z_m = 5;
+  double rotation_x = 6;
+  double rotation_y = 7;
+  double rotation_z = 8;
+  double rotation_w = 9;
+}
+
+message ImageFrame {
+  string sensor = 1;
+  uint32 width = 2;
+  uint32 height = 3;
+  string encoding = 4;
+  // Encoded bytes (PNG/JPEG or another Rerun-supported media type).
+  bytes data = 5;
+}
+
+message PointCloudFrame {
+  string sensor = 1;
+  // XYZ positions in meters, flattened as x0,y0,z0,x1,y1,z1,...
+  repeated float positions_xyz = 2;
+  // Optional packed RGBA colors, one uint32 per point.
+  repeated uint32 colors_rgba = 3;
+}
+
+enum SourceKind {
+  SOURCE_KIND_UNSPECIFIED = 0;
+  MOCK = 1;
+  MUJOCO = 2;
+  ROS2 = 3;
+  DRIVER = 4;
+  GATEWAY = 5;
+}
+
+enum SampleQuality {
+  SAMPLE_QUALITY_UNSPECIFIED = 0;
+  VALID = 1;
+  STALE = 2;
+  LIMITED = 3;
+  FAULT = 4;
+}

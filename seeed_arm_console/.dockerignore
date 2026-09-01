@@ -1,0 +1,9 @@
+target/
+docs/node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+cpp/**/build/
+.git/
+.gitignore
+Cargo.lock
+mujoco-*.tar.gz
