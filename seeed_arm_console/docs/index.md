@@ -1,41 +1,63 @@
 ---
 layout: home
+hero:
+  name: reBot-DevArm
+  text: B601-RS 仿真工作站
+  tagline: 用统一 SDK 连接规划、仿真和 Rerun 可视化
+  actions:
+    - theme: brand
+      text: 立即运行
+      link: /guide/simulation
+    - theme: alt
+      text: 查看架构
+      link: /architecture/c4-model
+features:
+  - title: 规划
+    details: Pinocchio、ProxSuite 和 Coal 提供 IK、轨迹候选与碰撞摘要。
+  - title: 执行
+    details: ArmGateway 连接 MuJoCo，统一处理轨迹预检、执行和遥测。
+  - title: 观察
+    details: Rerun Viewer 展示模型、TF、轨迹、接触和传感器数据。
 ---
 
-# reBot-DevArm 仿真工作站
+## 快速跑通
 
-基于 Rerun 的 Pinocchio + ProxSuite 机器人规划与 MuJoCo 仿真工作站。
+在仓库根目录打开三个终端：
 
-## 当前边界
+```bash
+# 终端 A：启动 Viewer
+cargo run --features embedded-viewer --bin rebot_sim_viewer
+
+# 终端 B：启动 MuJoCo 网关
+docker compose -f docker-compose.gateway.yml \
+  -f docker-compose.mujoco.yml up -d --build
+
+# 终端 C：验证网关
+scripts/run_gateway_grpc_smoke.sh
+```
+
+需要规划时，再启动 `scripts/run_planner_server.sh`，然后运行
+`scripts/run_planner_smoke.sh`。完整步骤、端口和排查方法见[仿真工作站](/guide/simulation)。
+
+## 一条主线
 
 ![系统数据流](/diagrams/system-context.svg)
 
-源文件：[system-context.puml](https://github.com/your-org/seeed-arm-console/blob/main/docs/diagrams/system-context.puml)
+业务程序通过 Python、C++ 或 Rust SDK 调用 `ArmPlanner` 获取候选轨迹，再把轨迹交给
+`ArmGateway` 预检和执行。网关发布的状态由 Rerun Viewer 订阅；Viewer 控制面板通过
+Rust SDK 发送命令。
 
-- Rerun 负责观察、记录和回放，不承担实时控制。
-- MuJoCo 网关保持独立，通过本机 gRPC 输出控制和仿真遥测；TCP JSON 仅作为可关闭的 legacy 适配层。
-- Pinocchio + ProxSuite 负责无界面规划服务，规划结果必须经过安全检查后才能提交仿真。
-- 官方 SDK 是外部工程的唯一接入面；外部工程不依赖平台内部算法、模型或 Rerun 对象。
-- ROS 2 Jazzy 只作为可选的 SDK 薄适配层和服务编排入口，不进入平台核心依赖。
+## 从哪里开始
 
-## 快速入口
+| 目标 | 页面 |
+| --- | --- |
+| 第一次启动仿真 | [仿真工作站](/guide/simulation) |
+| 了解组件和数据流 | [系统架构](/architecture/c4-model) |
+| 接入业务程序 | [Python SDK](/sdk/python)、[C++ SDK](/sdk/cpp)、[Rust SDK](/sdk/rust) |
+| 调整规划或仿真 | [规划与仿真](/backend/simulation) |
+| 查看记录和实体树 | [Rerun Viewer](/panels/rerun-viewer) |
+| 查协议字段和单位 | [SDK 与协议边界](/architecture/sdk-boundary) |
+| 构建、发布和部署 | [源码构建](/development/build)、[安全部署](/deployment/security) |
 
-- [仿真工作站引导](/guide/simulation)：从零启动 Viewer、MuJoCo 和规划原型。
-- [Rerun 数据方案](/panels/rerun-viewer)：实体树、坐标约定和记录路径。
-- [后端仿真边界](/backend/simulation)：Pinocchio、ProxSuite、MuJoCo 的职责。
-- [Python SDK](/sdk/python)：外部工程安装、调用、安全和兼容性约定。
-- [C++ SDK](/sdk/cpp)：外部 C++ 工程的源码构建和 gRPC 客户端 API。
-- [Rust SDK](/sdk/rust)：外部 Rust 工程的异步 gRPC 客户端 API。
-- [系统架构](/architecture/c4-model)：组件和数据流边界。
-- [最新工作计划](/simulation-work-plan)：里程碑、验收和未完成事项。
-
-## 当前可运行内容
-
-```bash
-cargo run --features embedded-viewer --bin rebot_sim_viewer
-scripts/run_planner_server.sh
-scripts/run_gateway_grpc_smoke.sh
-python3 scripts/verify_gateway.py  # legacy JSON adapter
-```
-
-真实设备接入前必须单独验证急停、使能、限位、速度限制、通信超时和断电行为。
+模型、坐标和单位约定集中在[项目简介](/guide/introduction)；设计取舍记录在[设计决策
+（ADR）](/architecture/decisions)。

@@ -1,13 +1,16 @@
-# PlantUML 图表
+# 图表
 
-架构和数据流图的源文件位于此目录，生成的 SVG 位于 `docs/public/diagrams/`。
+PlantUML 源文件描述规划数据流、SDK 边界和 Rerun 实体树；生成的 SVG 放在
+`docs/public/diagrams/`，由 VitePress 页面引用。
 
-使用仓库统一的 PlantUML：
+## 生成 SVG
 
 ```bash
+cd docs/diagrams
 java -Djava.awt.headless=true \
-  -jar /media/shippuu/Date/plantUML/plantuml.jar \
+  -jar /path/to/plantuml.jar \
   -tsvg -o ../public/diagrams *.puml
 ```
 
-提交图表修改时同时更新 `.puml` 和生成的 `.svg`。
+修改图表时同时提交对应的 `.puml` 和 `.svg` 文件。系统边界图见[系统架构](/architecture/c4-model)，
+实体树见[Rerun Viewer](/panels/rerun-viewer)。

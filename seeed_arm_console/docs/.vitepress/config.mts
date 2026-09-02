@@ -1,68 +1,63 @@
 import { defineConfig } from 'vitepress'
 
+const overviewItems = [
+  { text: '项目简介', link: '/guide/introduction' },
+  { text: '系统架构', link: '/architecture/c4-model' },
+  { text: '设计决策（ADR）', link: '/architecture/decisions' },
+]
+
+const quickStartItems = [
+  { text: '仿真工作站', link: '/guide/simulation' },
+  { text: 'Python SDK', link: '/sdk/python' },
+  { text: 'C++ SDK', link: '/sdk/cpp' },
+  { text: 'Rust SDK', link: '/sdk/rust' },
+]
+
+const moduleItems = [
+  { text: '规划与仿真', link: '/backend/simulation' },
+  { text: 'Rerun Viewer', link: '/panels/rerun-viewer' },
+  { text: 'SDK 与协议边界', link: '/architecture/sdk-boundary' },
+]
+
+const maintenanceItems = [
+  { text: '源码构建', link: '/development/build' },
+  { text: '安全部署', link: '/deployment/security' },
+  { text: '实施计划', link: '/simulation-work-plan' },
+]
+
 export default defineConfig({
   lang: 'zh-CN',
   title: 'reBot-DevArm Simulation',
-  description: '基于 Pinocchio、ProxSuite、MuJoCo 与 Rerun、通过 gRPC SDK 接入的仿真工作站文档',
+  description: 'B601-RS 机械臂仿真、规划与可视化平台的 SDK 接入文档',
   cleanUrls: true,
   lastUpdated: true,
   themeConfig: {
     nav: [
-      { text: '指南', link: '/guide/introduction' },
-      { text: '实施计划', link: '/simulation-work-plan' },
-      { text: 'Rerun 数据', link: '/panels/rerun-viewer' },
-      { text: '后端与仿真', link: '/backend/simulation' },
-      { text: 'SDK', link: '/sdk/python' },
-      { text: '架构', link: '/architecture/c4-model' },
-      { text: '源码构建', link: '/guide/simulation' },
+      { text: '项目概览', items: overviewItems },
+      { text: '快速开始', items: quickStartItems },
+      { text: '核心模块', items: moduleItems },
+      { text: '开发与维护', items: maintenanceItems },
     ],
-    sidebar: {
-      '/guide/': [
-        {
-          text: '入门指南',
-          items: [
-            { text: '项目介绍', link: '/guide/introduction' },
-            { text: '仿真工作站', link: '/guide/simulation' },
-          ],
-        },
-      ],
-      '/panels/': [
-        {
-          text: '上位机模块',
-          items: [
-            { text: 'Rerun 视图', link: '/panels/rerun-viewer' },
-          ],
-        },
-      ],
-      '/backend/': [
-        {
-          text: '后端与算法',
-          items: [
-            { text: '规划与仿真', link: '/backend/simulation' },
-          ],
-        },
-      ],
-      '/sdk/': [
-        {
-          text: '官方 SDK',
-          items: [
-            { text: 'Python SDK', link: '/sdk/python' },
-            { text: 'C++ SDK', link: '/sdk/cpp' },
-            { text: 'Rust SDK', link: '/sdk/rust' },
-          ],
-        },
-      ],
-      '/architecture/': [
-        {
-          text: '架构视图',
-          items: [
-            { text: 'C4 模型', link: '/architecture/c4-model' },
-          ],
-        },
-      ],
-    },
+    sidebar: [
+      {
+        text: '项目概览',
+        items: overviewItems,
+      },
+      {
+        text: '快速开始',
+        items: quickStartItems,
+      },
+      {
+        text: '核心模块',
+        items: moduleItems,
+      },
+      {
+        text: '开发与维护',
+        items: maintenanceItems,
+      },
+    ],
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/your-org/seeed-arm-console' },
+      { icon: 'github', link: 'https://github.com/Shippuurl/reBot-DevArm-simulation' },
     ],
     footer: {
       message: 'reBot-DevArm 仿真工作站文档',

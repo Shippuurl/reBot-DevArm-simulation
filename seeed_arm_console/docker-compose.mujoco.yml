@@ -22,6 +22,8 @@ services:
       LC_ALL: C.UTF-8
       ROS_DISTRO: jazzy
       MUJOCO_ENABLE_DEPTH_SENSOR: ${MUJOCO_ENABLE_DEPTH_SENSOR:-1}
+      ARM_CONSOLE_ENABLE_JSON: ${ARM_CONSOLE_ENABLE_JSON:-1}
+      ARM_CONSOLE_JSON_PORT: ${ARM_CONSOLE_JSON_PORT:-50052}
       # Inside a container the published host port reaches the container's
       # network interface, not loopback.
       ARM_CONSOLE_BIND_ADDRESS: 0.0.0.0

@@ -1,32 +1,33 @@
 @startuml
-title reBot-DevArm 仿真工作站：SDK 边界
+title reBot-DevArm：SDK 与服务边界
 left to right direction
 skinparam componentStyle rectangle
 skinparam shadowing false
 
-actor "外部工程\nPython / C++ / Rust / ROS 2" as external
-component "官方 SDK\n协议封装 / 会话 / 错误映射" as sdk
-component "可选 ROS 2 薄适配层\n话题与服务 ↔ SDK" as ros
+actor "业务程序\nPython / C++ / Rust" as application
+actor "操作员" as operator
+component "官方 SDK\n会话 / 类型 / 错误" as sdk
+component "ROS 2 编排\n（可选）" as ros
 
-package "平台部署（内部实现）" as platform {
-  component "ArmGateway\n控制 / 遥测 / 安全复核" as gateway
+package "平台服务" as platform {
   component "ArmPlanner\nPinocchio + ProxSuite" as planner
-  component "MuJoCo\n动力学 / 接触 / 深度点云" as mujoco
-  component "Rerun 主 Viewer\n观察 / 记录 / 回放" as viewer
+  component "ArmGateway\n控制 / 校验 / 遥测" as gateway
+  component "MuJoCo 或设备驱动\n执行 / 接触 / 传感器" as driver
+  component "Rerun Viewer\n观察 / 记录 / 回放" as viewer
 }
 
-external --> sdk : gRPC
-external ..> viewer : 仅通过平台 UI 观察
-ros --> sdk : 使用 SDK
-sdk --> gateway : ArmGateway RPC
-sdk --> planner : ArmPlanner RPC
-planner --> gateway : 候选轨迹\n（二次安全检查）
-mujoco --> gateway : SimulationDriver
-gateway --> viewer : 遥测 / TF / 轨迹
-planner --> viewer : 规划诊断（可选）
+application --> sdk : 调用
+ros --> sdk : 编排
+sdk --> planner : IK / 轨迹
+sdk --> gateway : 控制 / 遥测
+planner ..> application : 候选结果
+gateway --> driver : SimulationDriver
+gateway --> viewer : TelemetryFrame
+operator --> viewer : 查看 / 联调
+viewer ..> sdk : 控制面板命令
 
-note right of platform
-外部工程不依赖 MuJoCo、Pinocchio、ProxSuite、URDF
-或 Rerun 内部对象。Viewer 是平台自带可视化。
+note right of sdk
+业务程序只依赖 SDK；
+服务内部可独立部署。
 end note
 @enduml

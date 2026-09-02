@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-29",
+  "generated_at": "2026-09-02",
   "purpose": "Seeed reBot Arm B601 assets for Rerun, MuJoCo and egui",
   "models": [
     {
@@ -69,7 +69,7 @@
       "fonts/NotoSansSC-VF.ttf"
     ],
     "design_tokens": "design/tokens.json",
-    "icon_policy": "Brand-neutral Lucide-inspired painter icons in src/icons.rs; no icon font dependency"
+    "icon_policy": "Reusable PNG icons are optional UI assets and are independent of the SDK and control protocol"
   },
   "sources": [
     {
@@ -369,13 +369,13 @@
     },
     {
       "path": "robot/b601_rs/mujoco/rs_grasp_scene.xml",
-      "bytes": 3054,
-      "sha256": "24ffffdcd21bfd1a69089060f03ae2a75680fcb22674f0963f0ca009bcd24b6f"
+      "bytes": 3152,
+      "sha256": "d2bd266a9178cc4083033a7d9dae2c3b91565bf9cfc95f7c1b3615094496b61a"
     },
     {
       "path": "robot/b601_rs/mujoco/scene.xml",
-      "bytes": 2477,
-      "sha256": "ceb6ef01cdca851bc48e28ca15691a2d3739131f21dc888787f2be435923c2e7"
+      "bytes": 2667,
+      "sha256": "2ef26ed4ca2251c87145f6c2c8bce808c69d8890b387feb3f32219c24d494acb"
     },
     {
       "path": "robot/b601_rs/urdf/00-arm-rs_asm-v3.urdf",
@@ -424,8 +424,8 @@
     },
     {
       "path": "design/README.md",
-      "bytes": 682,
-      "sha256": "28B4AF09D08F55688C060E604475000752ECEFC22E7FD954DBDD4073A7682E2B"
+      "bytes": 483,
+      "sha256": "a280cb4eb3d511d71eb373c835a8e4919a69d9a358cccac2401411e4df462cf6"
     },
     {
       "path": "design/tokens.json",
@@ -434,8 +434,8 @@
     },
     {
       "path": "icons/README.md",
-      "bytes": 258,
-      "sha256": "A2CB099BD81E62D6008F1CB7BF7A5DA0ED0FECAFA8D6851853EADFAA2808999F"
+      "bytes": 223,
+      "sha256": "361a15282251243fc4eb0b026a21b51fb0ad80667ede828d23cb6da134d57657"
     },
     {
       "path": "licenses/FONTS.md",
