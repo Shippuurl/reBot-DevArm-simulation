@@ -84,6 +84,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(wall_time_ns) = wall_time_ns {
             rec.set_timestamp_nanos_since_epoch("wall_time", wall_time_ns as i64);
         }
+        // `time_from_start_ns` is relative to a trajectory and may reset or
+        // overlap while the live recording continues.  Clear any stale value
+        // and keep all live entities on the monotonic frame/sim timelines.
+        rec.disable_timeline("trajectory_time");
         for (kind, field) in [
             ("position", "joint_position_rad"),
             ("velocity", "joint_velocity_rad_s"),
@@ -138,12 +142,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ("actual_trajectory", "actual_trajectory"),
         ] {
             if let Some(points) = value.get(field).and_then(|v| v.as_array()) {
-                for point in points {
+                if let Some(point) = points.last() {
                     let timestamp = point
                         .get("time_from_start_ns")
                         .and_then(|v| v.as_u64())
                         .unwrap_or(sequence);
-                    rec.set_time_sequence("trajectory_time", timestamp as i64);
                     if let Some(positions) = point.get("position_rad").and_then(|v| v.as_array()) {
                         for (index, item) in positions.iter().enumerate() {
                             if let Some(number) = item.as_f64() {
@@ -157,6 +160,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
+                    rec.log(
+                        format!("planning/{trajectory_name}/time_from_start_ns"),
+                        &rerun::Scalars::single(timestamp as f64),
+                    )?;
                 }
             }
         }

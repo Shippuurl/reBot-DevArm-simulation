@@ -57,6 +57,7 @@ Rust SDK 发送命令。
 | 调整规划或仿真 | [规划与仿真](/backend/simulation) |
 | 查看记录和实体树 | [Rerun Viewer](/panels/rerun-viewer) |
 | 查协议字段和单位 | [SDK 与协议边界](/architecture/sdk-boundary) |
+| 查看当前进度和验证 | [实施计划（进度与验证）](/simulation-work-plan) |
 | 构建、发布和部署 | [源码构建](/development/build)、[安全部署](/deployment/security) |
 
 模型、坐标和单位约定集中在[项目简介](/guide/introduction)；设计取舍记录在[设计决策

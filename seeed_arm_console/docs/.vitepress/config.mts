@@ -21,8 +21,6 @@ const moduleItems = [
 
 const maintenanceItems = [
   { text: '源码构建', link: '/development/build' },
-  { text: '安全部署', link: '/deployment/security' },
-  { text: '实施计划', link: '/simulation-work-plan' },
 ]
 
 export default defineConfig({

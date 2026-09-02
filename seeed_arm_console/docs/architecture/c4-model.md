@@ -23,7 +23,7 @@ SDK 位于 `sdk/python`、`sdk/cpp` 和 `sdk/rust`。ROS 2 包位于
 `ros2_ws/src/pinocchio_planner`，负责启动和编排规划服务。`cpp/mock_gateway` 提供
 Mock 与 MuJoCo 两种 `ArmGateway` 驱动。
 
-50052 是换行 JSON 诊断接口，供验证脚本和 Rerun 转发器使用；业务控制走 50051。
+50052 是逐行 JSON 诊断接口，供验证脚本和 Rerun 转发器使用；业务控制走 50051。
 
 ## 请求链路
 

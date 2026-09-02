@@ -1,12 +1,11 @@
 # Python SDK 接入指南
 
-`rebot-arm-sdk` 是业务应用调用 `ArmGateway` 和 `ArmPlanner` 的 Python 客户端。它把
-gRPC 协议转换成同步方法和 dataclass，适合脚本、测试和业务服务。安装本包后，业务代码
-直接连接服务地址即可。
+`rebot-arm-sdk` 是外部业务调用 reBot 机械臂的官方 Python 客户端。它把 gRPC 协议转换成
+同步方法和 dataclass；SDK 只依赖 `grpcio`、`protobuf`，协议代码随包提供。
 
 ## 安装
 
-环境要求：Python 3.10+。安装包会带上协议生成代码：
+Python 版本：3.10+。
 
 ```bash
 python3 -m venv .venv
@@ -14,8 +13,6 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install /path/to/seeed_arm_console/sdk/python
 ```
-
-运行时依赖为 `grpcio` 和 `protobuf`。
 
 ## 最短示例
 

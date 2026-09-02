@@ -1,6 +1,6 @@
 # reBot-DevArm 仿真工作站
 
-面向 B601-RS 的规划、MuJoCo 动力学仿真和 Rerun 可视化工作站。业务程序通过 Python、
+面向 B601-RS 的规划、MuJoCo 运动学/接触仿真和 Rerun 可视化工作站。业务程序通过 Python、
 C++ 或 Rust SDK 调用统一的 `arm.console.v1` gRPC 服务。
 
 ## 快速运行
@@ -57,5 +57,5 @@ npm run docs:build    # 生产构建
 | `sdk/` | Python、C++、Rust SDK |
 | `src/` | Rust Viewer 和 Rerun 记录器 |
 
-实施状态和验证历史集中在[实施计划](docs/simulation-work-plan.md)；跨主机或真实设备
+实施状态和验证历史集中在[实施计划（进度与验证）](docs/simulation-work-plan.md)；跨主机或真实设备
 部署前请阅读[安全部署](docs/deployment/security.md)。

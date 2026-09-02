@@ -154,6 +154,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let telemetry_rate_hz = rerun_config.telemetry_rate_hz;
         tokio::spawn(async move {
             let mut retry_delay_ms = 250_u64;
+            let mut recording_clock = RecordingClock::default();
             loop {
                 let current_session = session_state_for_task
                     .lock()
@@ -214,7 +215,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         latest.link_state = "已连接".to_owned();
                                     }
                                     if let Some(recorder) = recorder.as_ref() {
-                                        record_gateway_frame(recorder.recording(), &frame);
+                                        let (recording_frame, recording_sim_time_ns) =
+                                            recording_clock.next(&frame);
+                                        record_gateway_frame(
+                                            recorder.recording(),
+                                            &frame,
+                                            recording_frame,
+                                            recording_sim_time_ns,
+                                        );
                                     }
                                 }
                                 Ok(None) => break,
@@ -322,6 +330,35 @@ struct TelemetryStatus {
 }
 
 #[cfg(feature = "grpc-client")]
+#[derive(Default)]
+struct RecordingClock {
+    frame: u64,
+    sim_time_ns: u64,
+}
+
+#[cfg(feature = "grpc-client")]
+impl RecordingClock {
+    /// Gateway sequence and simulation time can restart when the service is
+    /// restarted while the Viewer recording remains alive.  Normalize both
+    /// values locally so one recording always receives monotonic timelines.
+    fn next(&mut self, frame: &grpc_client::TelemetryFrame) -> (u64, u64) {
+        let source_frame = frame.sequence;
+        let source_sim_time = if frame.sim_time_ns == 0 {
+            frame.timestamp_ns
+        } else {
+            frame.sim_time_ns
+        };
+        self.next_values(source_frame, source_sim_time)
+    }
+
+    fn next_values(&mut self, source_frame: u64, source_sim_time: u64) -> (u64, u64) {
+        self.frame = source_frame.max(self.frame.saturating_add(1));
+        self.sim_time_ns = source_sim_time.max(self.sim_time_ns.saturating_add(1));
+        (self.frame, self.sim_time_ns)
+    }
+}
+
+#[cfg(feature = "grpc-client")]
 impl Default for TelemetryStatus {
     fn default() -> Self {
         Self {
@@ -347,16 +384,21 @@ fn frame_id(value: &str) -> String {
 }
 
 #[cfg(feature = "grpc-client")]
-fn record_gateway_frame(recorder: &rerun::RecordingStream, frame: &grpc_client::TelemetryFrame) {
-    recorder.set_time_sequence("frame", frame.sequence as i64);
-    recorder.set_time_sequence(
-        "sim_time",
-        (if frame.sim_time_ns == 0 {
-            frame.timestamp_ns
-        } else {
-            frame.sim_time_ns
-        }) as i64,
-    );
+fn record_gateway_frame(
+    recorder: &rerun::RecordingStream,
+    frame: &grpc_client::TelemetryFrame,
+    recording_frame: u64,
+    recording_sim_time_ns: u64,
+) {
+    // Trajectory points carry a relative `time_from_start_ns`.  Do not bind
+    // that value to a recording-wide timeline: a planned endpoint and the
+    // current actual point are emitted on every frame and their relative
+    // clocks can move backwards when a new trajectory starts.  Keeping the
+    // live recording on the monotonic frame/simulation timelines avoids
+    // unsorted chunks and preserves the relative value as a scalar below.
+    recorder.disable_timeline("trajectory_time");
+    recorder.set_time_sequence("frame", recording_frame as i64);
+    recorder.set_time_sequence("sim_time", recording_sim_time_ns as i64);
     if frame.wall_time_ns > 0 {
         recorder.set_timestamp_nanos_since_epoch("wall_time", frame.wall_time_ns as i64);
     }
@@ -392,7 +434,6 @@ fn record_gateway_frame(recorder: &rerun::RecordingStream, frame: &grpc_client::
         ("actual_trajectory", &frame.actual_trajectory),
     ] {
         if let Some(point) = points.last() {
-            recorder.set_time_sequence("trajectory_time", point.time_from_start_ns as i64);
             for (index, value) in point.position_rad.iter().enumerate() {
                 let _ = recorder.log(
                     format!(
@@ -402,6 +443,10 @@ fn record_gateway_frame(recorder: &rerun::RecordingStream, frame: &grpc_client::
                     &rerun::Scalars::single(*value as f32),
                 );
             }
+            let _ = recorder.log(
+                format!("planning/{trajectory_name}/time_from_start_ns"),
+                &rerun::Scalars::single(point.time_from_start_ns as f64),
+            );
         }
     }
     {
@@ -652,5 +697,19 @@ impl eframe::App for EmbeddedViewerApp {
 
     fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.rerun_app.logic(ctx, frame);
+    }
+}
+
+#[cfg(all(test, feature = "grpc-client"))]
+mod tests {
+    use super::RecordingClock;
+
+    #[test]
+    fn recording_clock_survives_gateway_restart() {
+        let mut clock = RecordingClock::default();
+        assert_eq!(clock.next_values(10, 1_000), (10, 1_000));
+        // Both source counters reset, but the recording timeline continues.
+        assert_eq!(clock.next_values(1, 10), (11, 1_001));
+        assert_eq!(clock.next_values(2, 20), (12, 1_002));
     }
 }

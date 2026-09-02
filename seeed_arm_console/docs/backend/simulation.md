@@ -40,6 +40,12 @@ scripts/run_planner_smoke.sh
 `cpp/mock_gateway` 将 `SimulationDriver` 接到 gRPC 服务。Compose 默认使用 MuJoCo 驱动，
 也可切换为确定性的 Mock 驱动。
 
+### 当前仿真边界
+
+MuJoCo 驱动当前把轨迹采样结果写入 `qpos/qvel`，再调用 `mj_forward` 更新姿态、接触和
+传感器数据；尚未接入执行器、PD/力矩控制和经过校准的质量、惯量、摩擦参数。因此现阶段
+验证范围是运动学、接触重算、协议和控制闭环，不代表 B601-RS 的额定动力学性能。
+
 | 能力 | 说明 |
 | --- | --- |
 | `Handshake` | 返回协议版本、驱动来源、DOF 和会话 ID |
@@ -53,7 +59,7 @@ scripts/run_planner_smoke.sh
 - 点数为 1–2000，首点时间为 0，时间单调；
 - 每个点包含 6 个有限关节值，速度字段为空或包含 6 个有限值；
 - 关节位置落在驱动模型的限位内（Mock 使用 B601-RS 固定限位）；
-- 点间速度和显式速度均不超过 2 rad/s。
+- 点间速度和显式速度均不超过 2 rad/s（仿真安全演示上限，不是设备额定速度）。
 
 `dry_run=true` 表示预检，只做检查，不改变驱动状态；检查通过后以 `dry_run=false` 正式提交。
 `Pause` 冻结轨迹时间但继续发遥测，`Resume` 从当前位置继续；`SpeedScale` 接受
