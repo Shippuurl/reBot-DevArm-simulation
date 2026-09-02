@@ -37,7 +37,7 @@ fn rerun_runtime_config() -> RerunRuntimeConfig {
             "1" | "true" | "on" | "yes"
         )
     });
-    let default_history_limit = if debug_mode { "64MiB" } else { "256MiB" };
+    let default_history_limit = if debug_mode { "64MiB" } else { "512MiB" };
     let memory_limit = match std::env::var("RERUN_HISTORY_LIMIT") {
         Ok(value) => match re_viewer::external::re_memory::MemoryLimit::parse(value.trim()) {
             Ok(limit) => limit,

@@ -50,7 +50,7 @@ world/
 
 ## 记录预算
 
-实时 recording 默认保留 `256MiB` 历史，优先保留静态模型。长时间调试使用：
+实时 recording 默认保留 `512MiB` 历史，优先保留静态模型。长时间调试使用：
 
 ```bash
 scripts/run_viewer_debug.sh
