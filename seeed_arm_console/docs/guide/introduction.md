@@ -24,6 +24,9 @@ reBot-DevArm 是面向 B601-RS 的规划、运动学/接触仿真与可视化工
 | Python / C++ / Rust SDK | 业务程序的统一客户端 | `sdk/` |
 | ROS 2 适配包 | 启动和编排规划服务 | `ros2_ws/src/pinocchio_planner` |
 
+视觉策略训练走独立离线管线：RoboTwin 2.0 生成数据，LingBot-VLA 训练或推理，策略结果
+经 `ArmPlanner` 和 `ArmGateway` 预检后在 MuJoCo 回放；这条管线不改变核心服务边界。
+
 ## 技术栈
 
 - Pinocchio：从 URDF 建立运动学模型，计算 FK、雅可比和 IK。

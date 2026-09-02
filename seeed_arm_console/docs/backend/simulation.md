@@ -81,6 +81,21 @@ MuJoCo 的 `overhead_depth` 使用 32×24 条 `mj_ray` 射线，最多产生 768
 每帧最多 4 个载荷，图像不超过 8 MiB 或 4096×4096，点云最多 50,000 点，超限点云会
 均匀降采样。
 
+## 离线视觉策略管线
+
+本项目只采用离线混合：RoboTwin 2.0（SAPIEN/PhysX）生成场景、视觉数据和专家轨迹，
+MuJoCo 负责策略回放与控制边界验证。两套引擎不在运行时同步关节或接触状态。
+
+后续以开源具身模型 LingBot-VLA 完成策略训练/推理接入，数据通过独立的
+Observation/Action Adapter 转换为本项目的观测和动作格式：
+
+```text
+RoboTwin 数据 → Adapter → LingBot-VLA → ArmPlanner → ArmGateway 预检 → MuJoCo 回放
+```
+
+Rerun 只承担观察和抽样回放，不作为训练数据源。仿真回放指标稳定后，再进入真机数据采集，
+用于 LingBot-VLA 的预训练或微调；真机安全门槛见[安全部署](/deployment/security)。
+
 ## Rerun 数据
 
 内嵌 Viewer 直接订阅 50051。需要检查 JSON 数据或把数据转发到其他 Rerun 客户端时，
