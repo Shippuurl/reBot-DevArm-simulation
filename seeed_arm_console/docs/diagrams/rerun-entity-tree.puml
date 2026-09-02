@@ -1,0 +1,22 @@
+@startmindmap
+title Rerun 实体树
+* world
+** robot
+*** model
+**** manifest
+**** mujoco_scene
+*** frames
+**** <link>/model/<mesh>
+*** joints
+**** joint_<n>/position
+**** joint_<n>/velocity
+** planning
+*** target
+*** ee_position
+*** error_m
+*** planned_trajectory
+** simulation
+*** contacts
+*** sensors
+** diagnostics
+@endmindmap

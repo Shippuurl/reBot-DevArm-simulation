@@ -1,10 +1,13 @@
 [package]
-name = "robot_workspace"
+name = "rebot_sim_viewer"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
 publish = false
-default-run = "robot_workspace"
+
+[[bin]]
+name = "rebot_sim_viewer"
+path = "src/bin/embedded_viewer.rs"
 
 [dependencies]
 eframe = { version = "0.36.1", default-features = true }
@@ -15,15 +18,18 @@ crossbeam-channel = "0.5.16"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 rerun = { version = "=0.36.3", default-features = false, features = ["sdk"], optional = true }
+rebot-arm-sdk = { package = "rebot-arm-sdk", path = "sdk/rust", optional = true }
 
 [features]
 default = []
 rerun-recording = ["dep:rerun"]
 embedded-viewer = [
     "rerun-recording",
+    "grpc-client",
     "rerun/native_viewer",
     "rerun/server",
 ]
+grpc-client = ["dep:rebot-arm-sdk"]
 
 [profile.dev.package."*"]
 opt-level = 2

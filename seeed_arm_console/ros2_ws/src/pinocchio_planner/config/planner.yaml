@@ -1,0 +1,7 @@
+pinocchio_planner:
+  ros__parameters:
+    listen: "127.0.0.1:50053"
+    default_minimum_distance: 0.02
+    planning_minimum_distance: 0.02
+    assembly_minimum_distance: 0.001
+    model: "assets/robot/b601_rs/urdf/00-arm-rs_asm-v3.urdf"

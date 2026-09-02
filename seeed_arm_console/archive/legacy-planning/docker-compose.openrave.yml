@@ -1,0 +1,14 @@
+services:
+  openrave-headless:
+    image: ${OPENRAVE_IMAGE:-fishros2/openrave:latest}
+    container_name: rebot-openrave
+    working_dir: /work/seeed_arm_console
+    environment:
+      DISPLAY: ""
+      OPENRAVE_DATA: /usr/share/openrave-0.9/data
+    volumes:
+      - type: bind
+        source: .
+        target: /work/seeed_arm_console
+    command: ["bash", "-lc", "python3 -c 'import openravepy; print(\"openrave=OK\")'"]
+    restart: unless-stopped

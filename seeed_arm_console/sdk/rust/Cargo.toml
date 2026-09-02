@@ -1,0 +1,29 @@
+[package]
+name = "rebot-arm-sdk"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Official Rust SDK for the reBot ArmGateway and ArmPlanner gRPC services"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+name = "rebot_arm_sdk"
+path = "src/lib.rs"
+
+[dependencies]
+prost = "0.14"
+tonic = { version = "0.14", features = ["transport"] }
+tonic-prost = "0.14"
+
+[features]
+default = []
+tls-native-roots = ["tonic/tls-native-roots"]
+tls-webpki-roots = ["tonic/tls-webpki-roots"]
+
+[build-dependencies]
+tonic-prost-build = "0.14"
+protoc-bin-vendored = "3"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

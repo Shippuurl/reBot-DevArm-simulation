@@ -11,23 +11,6 @@ fn main() {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{fs, path::PathBuf};
 
-    use serde::Deserialize;
-
-    #[derive(Debug, Deserialize)]
-    struct ModelManifest {
-        urdf: String,
-        visuals: Vec<ModelVisual>,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct ModelVisual {
-        link: String,
-        name: String,
-        mesh: String,
-        #[serde(default)]
-        albedo_factor: Option<[u8; 4]>,
-    }
-
     let output = std::env::args()
         .nth(1)
         .map(PathBuf::from)
@@ -39,55 +22,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::create_dir_all(parent)?;
     }
 
-    let recording = rerun::RecordingStreamBuilder::new("robot_workspace_sample").save(&output)?;
-    recording.log_static("robot", &rerun::ViewCoordinates::RIGHT_HAND_Z_UP())?;
-
+    let builder = rerun::RecordingStreamBuilder::new("robot_workspace_sample");
+    let grpc_url = std::env::var("RERUN_GRPC_URL")
+        .ok()
+        .filter(|url| !url.trim().is_empty());
+    let recording = if let Some(url) = grpc_url.as_deref() {
+        builder.connect_grpc_opts(url)?
+    } else {
+        builder.save(&output)?
+    };
     let model_root = std::env::var_os("ROBOT_MODEL_ROOT")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("assets/robot/b601_rs"));
-    let manifest_path = resolve_model_path(
-        &model_root,
-        &std::env::var("ROBOT_MODEL_MANIFEST").unwrap_or_else(|_| "rerun/model.json".to_owned()),
-    )?;
-    let manifest: ModelManifest = serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
-    recording.log_static("robot/frames", &rerun::CoordinateFrame::new("world"))?;
-    let mut linked_frames = std::collections::BTreeSet::new();
-    for (index, visual) in manifest.visuals.iter().enumerate() {
-        let path = resolve_model_path(&model_root, &visual.mesh)?;
-        let mut asset = rerun::Asset3D::from_file_path(&path)?;
-        if let Some(color) = visual.albedo_factor {
-            asset = asset.with_albedo_factor(u32::from_be_bytes(color));
-        }
-        recording.log_static(
-            format!(
-                "robot/frames/{}/model/{index:02}_{}",
-                visual.link, visual.name
-            ),
-            &asset,
-        )?;
-        if linked_frames.insert(visual.link.clone()) {
-            recording.log_static(
-                format!("robot/frames/{}", visual.link),
-                &rerun::CoordinateFrame::new(frame_id(&visual.link)),
-            )?;
-        }
-    }
-    recording.log_static(
-        "robot/model/manifest",
-        &rerun::TextDocument::from_file_path(&manifest_path)?,
-    )?;
-    let urdf_path = resolve_model_path(&model_root, &manifest.urdf)?;
-    recording.log_static(
-        "robot/model/urdf",
-        &rerun::TextDocument::from_file_path(urdf_path)?,
-    )?;
-    let scene_path = model_root.join("mujoco/scene.xml");
-    if scene_path.is_file() {
-        recording.log_static(
-            "robot/model/mujoco_scene",
-            &rerun::TextDocument::from_file_path(scene_path)?,
-        )?;
-    }
+    let recorder = rebot_sim_viewer::rerun_bridge::RerunRecorder::from_recording(recording);
+    recorder
+        .log_model_assets(&model_root)
+        .map_err(std::io::Error::other)?;
+    let recording = recorder.into_recording();
 
     for frame in 0..120_u64 {
         let t = frame as f32 * 0.02;
@@ -198,8 +149,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     drop(recording);
-    let bytes = fs::metadata(&output)?.len();
-    println!("recording={} bytes={bytes}", output.display());
+    if let Some(url) = grpc_url {
+        // A gRPC recording is streamed to the Viewer and intentionally does
+        // not create the local output path.  Do not probe it as if this were
+        // the offline .rrd mode (which used to produce ENOENT after a
+        // successful online sample run).
+        println!("recording=grpc url={url} frames=120");
+    } else {
+        let bytes = fs::metadata(&output)?.len();
+        println!("recording={} bytes={bytes}", output.display());
+    }
     Ok(())
 }
 
@@ -244,30 +203,4 @@ fn quat_multiply(lhs: [f32; 4], rhs: [f32; 4]) -> [f32; 4] {
         lhs[3] * rhs[2] + lhs[0] * rhs[1] - lhs[1] * rhs[0] + lhs[2] * rhs[3],
         lhs[3] * rhs[3] - lhs[0] * rhs[0] - lhs[1] * rhs[1] - lhs[2] * rhs[2],
     ]
-}
-
-#[cfg(feature = "rerun-recording")]
-fn resolve_model_path(
-    root: &std::path::Path,
-    relative: &str,
-) -> Result<std::path::PathBuf, std::io::Error> {
-    let relative_path = std::path::Path::new(relative);
-    if relative_path.is_absolute()
-        || relative_path
-            .components()
-            .any(|component| matches!(component, std::path::Component::ParentDir))
-    {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            format!("model path must stay inside asset root: {relative}"),
-        ));
-    }
-    let path = root.join(relative_path);
-    if !path.is_file() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            format!("model file not found: {}", path.display()),
-        ));
-    }
-    Ok(path)
 }

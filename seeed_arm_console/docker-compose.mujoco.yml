@@ -16,17 +16,24 @@ services:
         target: /work/seeed_arm_console
     ports:
       - "127.0.0.1:50051:50051"
+      - "127.0.0.1:50052:50052"
     environment:
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
       ROS_DISTRO: jazzy
+      MUJOCO_ENABLE_DEPTH_SENSOR: ${MUJOCO_ENABLE_DEPTH_SENSOR:-1}
+      # Inside a container the published host port reaches the container's
+      # network interface, not loopback.
+      ARM_CONSOLE_BIND_ADDRESS: 0.0.0.0
+      ARM_CONSOLE_GRPC_BIND_ADDRESS: 0.0.0.0
     command:
       - bash
       - -lc
       - >-
         unset DISPLAY WAYLAND_DISPLAY QT_X11_NO_MITSHM LIBGL_ALWAYS_INDIRECT;
         cmake -S . -B /tmp/arm-console-gateway-build
-        -DARM_CONSOLE_WITH_MUJOCO=ON -DMUJOCO_ROOT=/opt/mujoco;
+        -DARM_CONSOLE_WITH_MUJOCO=ON -DARM_CONSOLE_WITH_GRPC=ON
+        -DMUJOCO_ROOT=/opt/mujoco;
         cmake --build /tmp/arm-console-gateway-build --config Release -j2;
         exec /tmp/arm-console-gateway-build/arm_console_mock_gateway
         50051 /work/seeed_arm_console/assets/robot/b601_rs/mujoco/scene.xml

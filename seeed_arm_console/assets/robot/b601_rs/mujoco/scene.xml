@@ -33,6 +33,9 @@
 
   <worldbody>
     <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <!-- CPU raycast depth camera used by the headless gateway sensor path. -->
+    <camera name="overhead_depth" mode="fixed" pos="0.34 0 0.78"
+            xyaxes="1 0 0 0 1 0" fovy="48"/>
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
 
     <!-- 世界坐标系原点坐标轴 -->

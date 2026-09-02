@@ -8,11 +8,15 @@
 #include <cerrno>
 #include <cstdlib>
 #include <iostream>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <thread>
 
 #include "simulation.hpp"
+#ifdef ARM_CONSOLE_WITH_GRPC
+#    include "grpc_server.hpp"
+#endif
 
 #ifdef _WIN32
 #    define NOMINMAX
@@ -145,6 +149,10 @@ std::string telemetry_json(std::uint64_t sequence,
     json << "{\"sequence\":" << sequence
          << ",\"timestamp_ns\":"
          << snapshot.timestamp_ns
+         << ",\"sim_time_ns\":" << snapshot.timestamp_ns
+         << ",\"wall_time_ns\":"
+         << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count()
          << ",\"source\":\"" << snapshot.source << "\",\"quality\":\""
          << snapshot.quality << "\""
          << ",\"joint_position_rad\":";
@@ -176,6 +184,35 @@ std::string telemetry_json(std::uint64_t sequence,
     append_trajectory(snapshot.planned_trajectory);
     json << ",\"actual_trajectory\":";
     append_trajectory(snapshot.actual_trajectory);
+    json << ",\"contacts\":[";
+    for (std::size_t index = 0; index < snapshot.contacts.size(); ++index) {
+        if (index != 0) json << ',';
+        const auto& contact = snapshot.contacts[index];
+        json << "{\"first_geom\":\"" << contact.first_geom
+             << "\",\"second_geom\":\"" << contact.second_geom
+             << "\",\"distance_m\":" << contact.distance_m
+             << ",\"normal_force_n\":" << contact.normal_force_n << '}';
+    }
+    json << ']';
+    json << ",\"point_clouds\":[";
+    for (std::size_t index = 0; index < snapshot.point_clouds.size(); ++index) {
+        if (index != 0) json << ',';
+        const auto& cloud = snapshot.point_clouds[index];
+        json << "{\"sensor\":\"" << cloud.sensor << "\",\"positions\":[";
+        for (std::size_t point = 0; point < cloud.positions_xyz.size(); ++point) {
+            if (point != 0) json << ',';
+            json << '[' << cloud.positions_xyz[point][0] << ','
+                 << cloud.positions_xyz[point][1] << ','
+                 << cloud.positions_xyz[point][2] << ']';
+        }
+        json << "],\"colors_rgba\":[";
+        for (std::size_t color = 0; color < cloud.colors_rgba.size(); ++color) {
+            if (color != 0) json << ',';
+            json << cloud.colors_rgba[color];
+        }
+        json << "]}";
+    }
+    json << ']';
     json << '}';
     json << '\n';
     return json.str();
@@ -211,12 +248,24 @@ socket_t make_server(std::uint16_t port) {
     setsockopt(server, SOL_SOCKET, SO_REUSEADDR,
                reinterpret_cast<const char*>(&reuse), sizeof(reuse));
 
+    const char* configured_host = std::getenv("ARM_CONSOLE_BIND_ADDRESS");
+    const char* host = configured_host == nullptr || configured_host[0] == '\0'
+                           ? "127.0.0.1" : configured_host;
     sockaddr_in address{};
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_ANY);
+    if (inet_pton(AF_INET, host, &address.sin_addr) != 1) {
+        close_socket(server);
+        return invalid_socket;
+    }
     address.sin_port = htons(port);
     if (bind(server, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0 ||
         listen(server, 1) != 0) {
+        close_socket(server);
+        return invalid_socket;
+    }
+    // A timeout/non-blocking accept lets SIGINT/SIGTERM shut down promptly
+    // while the gRPC server is waiting in its own thread.
+    if (!set_nonblocking(server)) {
         close_socket(server);
         return invalid_socket;
     }
@@ -262,19 +311,65 @@ int main(int argc, char** argv) {
 #ifndef _WIN32
     std::signal(SIGPIPE, SIG_IGN);
 #endif
-    const socket_t server = make_server(port);
-    if (server == invalid_socket) {
-        std::cerr << "cannot listen on 0.0.0.0:" << port << "\n";
+    std::mutex driver_mutex;
+#ifdef ARM_CONSOLE_WITH_GRPC
+    arm_console::gateway::ArmGatewayService grpc_service(*driver, driver_mutex);
+    std::string grpc_error;
+    auto grpc_server = arm_console::gateway::start_server(grpc_service, port, grpc_error);
+    if (!grpc_server) {
+        std::cerr << grpc_error << "\n";
 #ifdef _WIN32
         WSACleanup();
 #endif
         return 3;
     }
 
-    std::cout << "arm_console_mock_gateway listening on 127.0.0.1:" << port
-              << " using " << driver->name() << " driver (newline-delimited JSON)"
-              << std::endl;
+    // Keep JSON only as an explicitly separate legacy adapter. This avoids
+    // binding two protocols to the same control port and lets new clients use
+    // the protobuf contract by default.
+    std::uint16_t json_port = static_cast<std::uint16_t>(port == 65535 ? 65534 : port + 1);
+    if (const char* configured_json_port = std::getenv("ARM_CONSOLE_JSON_PORT")) {
+        const auto parsed = std::stoi(configured_json_port);
+        if (parsed > 0 && parsed <= 65535) json_port = static_cast<std::uint16_t>(parsed);
+    }
+    const bool json_enabled = [] {
+        const char* value = std::getenv("ARM_CONSOLE_ENABLE_JSON");
+        return value == nullptr || std::string(value) != "0";
+    }();
+    const socket_t server = json_enabled ? make_server(json_port) : invalid_socket;
+    if (json_enabled && server == invalid_socket) {
+        std::cerr << "warning: cannot listen on legacy JSON port " << json_port
+                  << "; continuing with gRPC only\n";
+    }
+#else
+    const socket_t server = make_server(port);
+    if (server == invalid_socket) {
+        std::cerr << "cannot listen on 127.0.0.1:" << port << "\n";
+#ifdef _WIN32
+        WSACleanup();
+#endif
+        return 3;
+    }
+#endif
+
+#ifdef ARM_CONSOLE_WITH_GRPC
+    const char* grpc_host = std::getenv("ARM_CONSOLE_GRPC_BIND_ADDRESS");
+    if (grpc_host == nullptr || grpc_host[0] == '\0') grpc_host = "127.0.0.1";
+    std::cout << "arm_console_mock_gateway gRPC listening on " << grpc_host << ":" << port
+              << " using " << driver->name() << " driver" << std::endl;
+    if (server != invalid_socket) {
+        std::cout << "legacy JSON adapter listening on port " << json_port << std::endl;
+    }
+#else
+    std::cout << "arm_console_mock_gateway listening on port " << port
+              << " using " << driver->name() << " driver" << std::endl;
+    std::cout << "newline-delimited JSON adapter listening on 127.0.0.1:" << port << std::endl;
+#endif
     while (running.load()) {
+        if (server == invalid_socket) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            continue;
+        }
         sockaddr_in peer{};
 #ifdef _WIN32
         int peer_size = sizeof(peer);
@@ -294,16 +389,25 @@ int main(int argc, char** argv) {
         while (running.load()) {
             const auto now = std::chrono::steady_clock::now();
             const double elapsed = std::chrono::duration<double>(now - started).count();
-            const auto snapshot = driver->sample(elapsed);
+            arm_console::SimulationSnapshot snapshot;
+            bool commands_ok = true;
+            {
+                std::lock_guard lock(driver_mutex);
+                snapshot = driver->sample(elapsed);
+                if (nonblocking) commands_ok = drain_commands(client, *driver, pending_commands);
+            }
             if (!send_all(client, telemetry_json(++sequence, snapshot))) break;
-            if (nonblocking && !drain_commands(client, *driver, pending_commands)) break;
+            if (!commands_ok) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
         close_socket(client);
         if (running.load()) std::cout << "client disconnected" << std::endl;
     }
 
-    close_socket(server);
+    if (server != invalid_socket) close_socket(server);
+#ifdef ARM_CONSOLE_WITH_GRPC
+    grpc_server->shutdown();
+#endif
 #ifdef _WIN32
     WSACleanup();
 #endif

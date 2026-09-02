@@ -1,0 +1,20 @@
+@startuml
+title 规划与仿真数据流
+left to right direction
+skinparam shadowing false
+
+file "B601-RS URDF\n模型清单" as model
+component "Pinocchio\nFK / 雅可比 / IK" as pin
+component "ProxSuite\n约束 QP / 轨迹优化" as prox
+component "安全检查\n限位 / 碰撞 / 时序" as safety
+component "MuJoCo 网关\n执行候选轨迹" as mujoco
+component "Rerun\n目标 / 轨迹 / 误差" as rerun
+
+model --> pin
+pin --> prox : 末端误差与雅可比
+prox --> safety : 候选轨迹
+safety --> mujoco : 通过后提交
+pin --> rerun : FK 与迭代状态
+prox --> rerun : 优化结果
+mujoco --> rerun : 实际状态与误差
+@enduml

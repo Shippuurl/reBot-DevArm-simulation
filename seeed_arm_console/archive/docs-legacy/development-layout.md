@@ -18,7 +18,7 @@ seeed_arm_console/
 仓库外的参考目录：
 
 - `reBot-DevArm/`：硬件、CAD 和上游资料；运行时只引用已整理到 `assets/` 的模型。
-- `openrave/`：OpenRAVE 源码/参考实现；规划服务接入前保持独立。
+- `scripts/pinocchio_proxsuite_rerun.py`：Pinocchio/ProxSuite 规划原型与 Rerun 输出。
 - `eguiLibrary/`：第三方 egui 实验库，与仿真运行链路无关。
 
 ## 日常入口
@@ -33,4 +33,4 @@ seeed_arm_console/
 
 - MuJoCo 网关通过 `cpp/mock_gateway` 和 `assets/robot/b601_rs/mujoco` 运行。
 - Rerun 通过 Rust feature `rerun-recording` 启用。
-- OpenRAVE 未来作为 headless 服务接入，不引入 MoveIt，也不复制进 `src/`。
+- Pinocchio/ProxSuite 以 ROS 2 Jazzy headless 服务接入，不引入 MoveIt，也不复制进 `src/`。

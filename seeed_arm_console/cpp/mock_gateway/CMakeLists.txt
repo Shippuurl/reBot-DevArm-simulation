@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(ARM_CONSOLE_WITH_MUJOCO "Build the MuJoCo simulation driver" OFF)
+option(ARM_CONSOLE_WITH_GRPC "Build the ArmGateway gRPC service" OFF)
 
 add_executable(arm_console_mock_gateway
     src/main.cpp
@@ -26,6 +27,31 @@ if(ARM_CONSOLE_WITH_MUJOCO)
     target_compile_definitions(arm_console_mock_gateway PRIVATE ARM_CONSOLE_WITH_MUJOCO=1)
     target_include_directories(arm_console_mock_gateway PRIVATE "${MUJOCO_INCLUDE_DIR}")
     target_link_libraries(arm_console_mock_gateway PRIVATE "${MUJOCO_LIBRARY}" ${CMAKE_DL_LIBS})
+endif()
+
+if(ARM_CONSOLE_WITH_GRPC)
+    # Ubuntu's protobuf development package ships the CMake FindProtobuf
+    # module (while gRPC is provided as a config package).
+    find_package(Protobuf REQUIRED)
+    find_package(gRPC CONFIG REQUIRED)
+    set(ARM_CONSOLE_PROTO "${CMAKE_CURRENT_SOURCE_DIR}/../../protocol/arm_console.proto")
+    set(GRPC_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    file(MAKE_DIRECTORY "${GRPC_GEN_DIR}")
+    add_custom_command(
+        OUTPUT "${GRPC_GEN_DIR}/arm_console.pb.cc" "${GRPC_GEN_DIR}/arm_console.pb.h"
+               "${GRPC_GEN_DIR}/arm_console.grpc.pb.cc" "${GRPC_GEN_DIR}/arm_console.grpc.pb.h"
+        COMMAND protobuf::protoc --proto_path="${CMAKE_CURRENT_SOURCE_DIR}/../../protocol"
+                --cpp_out="${GRPC_GEN_DIR}" --grpc_out="${GRPC_GEN_DIR}"
+                --plugin=protoc-gen-grpc="$<TARGET_FILE:gRPC::grpc_cpp_plugin>" "${ARM_CONSOLE_PROTO}"
+        DEPENDS "${ARM_CONSOLE_PROTO}"
+    )
+    target_sources(arm_console_mock_gateway PRIVATE
+        src/grpc_server.cpp
+        "${GRPC_GEN_DIR}/arm_console.pb.cc"
+        "${GRPC_GEN_DIR}/arm_console.grpc.pb.cc")
+    target_include_directories(arm_console_mock_gateway PRIVATE "${GRPC_GEN_DIR}")
+    target_link_libraries(arm_console_mock_gateway PRIVATE gRPC::grpc++ protobuf::libprotobuf)
+    target_compile_definitions(arm_console_mock_gateway PRIVATE ARM_CONSOLE_WITH_GRPC=1)
 endif()
 
 if(WIN32)

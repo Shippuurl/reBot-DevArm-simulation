@@ -22,13 +22,23 @@ def wait_for(sock, predicate, timeout=5):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--port", type=int, default=50051)
+    ap.add_argument("--port", type=int, default=50052,
+                    help="legacy JSON adapter port (gRPC uses 50051)")
     args = ap.parse_args()
     with socket.create_connection((args.host, args.port), timeout=5) as sock:
         sock.settimeout(5)
         first = wait_for(sock, lambda x: "sequence" in x)
         assert first["source"] == "mujoco", first
         assert len(first["tf"]) == 10, len(first["tf"])
+        depth = next(
+            (
+                cloud
+                for cloud in first.get("point_clouds", [])
+                if cloud.get("sensor") == "overhead_depth"
+            ),
+            None,
+        )
+        assert depth is not None and len(depth.get("positions", [])) > 0, first
         before = first["joint_position_rad"][0]
         sock.sendall(b'{"type":"enable","enabled":true}\n')
         ack = wait_for(sock, lambda x: x.get("type") == "ack")
@@ -37,7 +47,10 @@ def main():
         ack = wait_for(sock, lambda x: x.get("type") == "ack")
         assert ack["status"] == "accepted", ack
         after = wait_for(sock, lambda x: "sequence" in x and abs(x["joint_position_rad"][0] - before) > 1e-7)
-        print(f"telemetry=OK source={after['source']} tf={len(after['tf'])} sequence={after['sequence']}")
+        print(
+            f"telemetry=OK source={after['source']} tf={len(after['tf'])} "
+            f"sequence={after['sequence']} depth_points={len(depth['positions'])}"
+        )
         print("control=OK enable accepted, jog accepted")
 
 if __name__ == "__main__": main()

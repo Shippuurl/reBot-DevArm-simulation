@@ -19,6 +19,13 @@ use crossbeam_channel::Receiver;
 use serde::Deserialize;
 
 pub const JOINT_COUNT: usize = 6;
+/// Bounded sensor payloads keep a malformed or high-rate source from
+/// exhausting the Viewer process.  Producers may send less than these
+/// limits; consumers must still enforce them at the recording boundary.
+pub const MAX_IMAGES_PER_FRAME: usize = 4;
+pub const MAX_IMAGE_BYTES: usize = 8 * 1024 * 1024;
+pub const MAX_POINT_CLOUDS_PER_FRAME: usize = 4;
+pub const MAX_POINT_CLOUD_POINTS: usize = 50_000;
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -412,6 +419,12 @@ impl JsonTelemetryFrame {
             images: self
                 .images
                 .into_iter()
+                .filter(|image| {
+                    image.data.len() <= MAX_IMAGE_BYTES
+                        && image.width <= 4096
+                        && image.height <= 4096
+                })
+                .take(MAX_IMAGES_PER_FRAME)
                 .map(|image| ImageFrame {
                     sensor: image.sensor,
                     width: image.width,
@@ -423,10 +436,35 @@ impl JsonTelemetryFrame {
             point_clouds: self
                 .point_clouds
                 .into_iter()
-                .map(|cloud| PointCloudFrame {
-                    sensor: cloud.sensor,
-                    positions: cloud.positions,
-                    colors_rgba: cloud.colors_rgba,
+                .take(MAX_POINT_CLOUDS_PER_FRAME)
+                .map(|cloud| {
+                    let original_count = cloud.positions.len();
+                    let stride = original_count.div_ceil(MAX_POINT_CLOUD_POINTS).max(1);
+                    let positions: Vec<[f32; 3]> = cloud
+                        .positions
+                        .into_iter()
+                        .enumerate()
+                        .filter(|(index, _)| index % stride == 0)
+                        .take(MAX_POINT_CLOUD_POINTS)
+                        .map(|(_, position)| position)
+                        .collect();
+                    let colors_rgba = if cloud.colors_rgba.len() == original_count {
+                        cloud
+                            .colors_rgba
+                            .into_iter()
+                            .enumerate()
+                            .filter(|(index, _)| index % stride == 0)
+                            .take(MAX_POINT_CLOUD_POINTS)
+                            .map(|(_, color)| color)
+                            .collect()
+                    } else {
+                        Vec::new()
+                    };
+                    PointCloudFrame {
+                        sensor: cloud.sensor,
+                        positions,
+                        colors_rgba,
+                    }
                 })
                 .collect(),
         })
@@ -607,8 +645,10 @@ mod tests {
     use std::{io::Write, net::TcpListener, thread, time::Duration};
 
     use super::{
-        ChannelTelemetrySource, JOINT_COUNT, JsonTelemetryFrame, LinkState, MockTelemetrySource,
-        SampleQuality, SourceKind, TcpTelemetrySource, TelemetryFrame, TelemetrySource,
+        ChannelTelemetrySource, JOINT_COUNT, JsonImageFrame, JsonPointCloudFrame,
+        JsonTelemetryFrame, LinkState, MAX_IMAGE_BYTES, MAX_POINT_CLOUD_POINTS,
+        MockTelemetrySource, SampleQuality, SourceKind, TcpTelemetrySource, TelemetryFrame,
+        TelemetrySource,
     };
 
     #[test]
@@ -679,6 +719,54 @@ mod tests {
         assert_eq!(frame.images[0].data.len(), 4);
         assert_eq!(frame.point_clouds[0].positions.len(), 2);
         assert_eq!(frame.point_clouds[0].colors_rgba.len(), 2);
+    }
+
+    #[test]
+    fn sensor_payloads_are_bounded_and_downsampled() {
+        let points: Vec<[f32; 3]> = (0..(MAX_POINT_CLOUD_POINTS * 2 + 1))
+            .map(|index| [index as f32, 0.0, 1.0])
+            .collect();
+        let colors = vec![0xff00ffff; points.len()];
+        let parsed = JsonTelemetryFrame {
+            sequence: 9,
+            timestamp_ns: 44,
+            source: None,
+            quality: None,
+            joint_position: vec![0.0; JOINT_COUNT],
+            joint_velocity: vec![0.0; JOINT_COUNT],
+            tf: Vec::new(),
+            planned_trajectory: Vec::new(),
+            actual_trajectory: Vec::new(),
+            images: vec![
+                JsonImageFrame {
+                    sensor: "oversize".to_owned(),
+                    width: 1,
+                    height: 1,
+                    encoding: "raw".to_owned(),
+                    data: vec![0; MAX_IMAGE_BYTES + 1],
+                },
+                JsonImageFrame {
+                    sensor: "ok".to_owned(),
+                    width: 1,
+                    height: 1,
+                    encoding: "raw".to_owned(),
+                    data: vec![1, 2, 3],
+                },
+            ],
+            point_clouds: vec![JsonPointCloudFrame {
+                sensor: "depth".to_owned(),
+                positions: points,
+                colors_rgba: colors,
+            }],
+        };
+        let frame = parsed.into_frame().expect("valid bounded frame");
+        assert_eq!(frame.images.len(), 1);
+        assert_eq!(frame.images[0].sensor, "ok");
+        assert!(frame.point_clouds[0].positions.len() <= MAX_POINT_CLOUD_POINTS);
+        assert_eq!(
+            frame.point_clouds[0].positions.len(),
+            frame.point_clouds[0].colors_rgba.len()
+        );
     }
 
     #[test]

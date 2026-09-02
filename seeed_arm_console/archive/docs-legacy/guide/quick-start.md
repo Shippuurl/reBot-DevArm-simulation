@@ -23,17 +23,17 @@ cargo --version
 docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
 ```
 
-OpenRAVE 规划容器和 ROS 2 容器可分别启动。容器只提供 TCP 数据服务，不映射 X11 socket，也不需要设置 `DISPLAY`：
+Pinocchio/ProxSuite 规划环境和 ROS 2 容器可分别启动。容器只提供 headless 数据服务，不映射 X11 socket，也不需要设置 `DISPLAY`：
 
 ```powershell
 docker start rebot-ros2-jazzy
-docker start openrave-dev
+docker start rebot-ros2-jazzy
 ```
 
 也可以使用项目脚本检查 ROS 2 容器的 headless 环境：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\ros2-headless.ps1 -Action check
+docker inspect rebot-ros2-jazzy >/dev/null && echo "ros2 container=OK"
 ```
 
 如果是第一次部署，使用 Docker Compose 或 PowerShell 脚本创建容器，并将工作区挂载到 `/work`。
@@ -51,7 +51,7 @@ docker compose -f .\docker-compose.gateway.yml logs --tail 30
 也可以使用脚本：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\gateway.ps1 -Action start
+docker compose -f docker-compose.gateway.yml up -d --build
 ```
 
 脚本会等待网关编译完成并确认 `127.0.0.1:50051` 已可连接，再启动桌面端。
@@ -78,7 +78,7 @@ docker compose -f .\docker-compose.gateway.yml -f .\docker-compose.mujoco.yml up
 也可执行：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\gateway.ps1 -Action mujoco-start
+docker compose -f docker-compose.gateway.yml -f docker-compose.mujoco.yml up -d --build
 ```
 
 MuJoCo 派生镜像构建需要容器能访问下载地址；网络受限时设置 `$env:MUJOCO_URL` 为可访问的镜像 URL，并同步对应的 SHA-256 参数。
@@ -86,7 +86,7 @@ MuJoCo 派生镜像构建需要容器能访问下载地址；网络受限时设�
 启动后可以用项目自带脚本验证真实 MuJoCo 数据链路和控制命令：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\verify-gateway.ps1 -ExpectedSource mujoco -CheckControl
+python3 scripts/verify_gateway.py
 ```
 
 脚本会检查 6 个关节、至少 10 条 TF（含左右夹爪）、`actual_trajectory`，并发送一次 Jog 等待 `accepted` 确认。预期输出包含：
@@ -111,10 +111,10 @@ cargo run
 上位机可以把 Rerun Native Viewer 嵌入同一 `eframe` 窗口。首次启用 `native_viewer` 需要联网下载 Viewer 依赖；国内镜像未缓存全部依赖时不要使用 `--offline`：
 
 ```powershell
-cargo run --features embedded-viewer --bin embedded_viewer
+cargo run --features embedded-viewer --bin rebot_sim_viewer
 ```
 
-该入口包含一个自定义 egui 面板，并在 `127.0.0.1:9876` 接收 Rerun gRPC 数据。支持 Rerun SDK 的数据源连接此地址后，数据会显示在内嵌 Viewer 中；当前 C++ 网关仍使用 `50051` JSON 控制/遥测端口，Rerun 转发将在后续阶段接入。当前 `assets/robot` 模型记录和实时遥测桥接沿用同一 Rerun 实体路径。
+该入口包含一个自定义 egui 面板，并在 `127.0.0.1:9876` 接收 Rerun gRPC 数据。设置 `RERUN_GRPC_URL=rerun+http://127.0.0.1:9876/proxy` 后，桌面端遥测记录会实时推送到内嵌 Viewer；未设置时仍写入本地 `.rrd` 文件。当前 C++ 网关仍使用 `50051` JSON 控制/遥测端口。
 
 ## 6. 启用 Rerun 记录（可选）
 
@@ -156,7 +156,7 @@ rerun recordings\sample.rrd
 
 ```powershell
 cargo clean
-cargo check --features embedded-viewer --bin embedded_viewer
+cargo check --features embedded-viewer --bin rebot_sim_viewer
 ```
 
 ### 图形转发

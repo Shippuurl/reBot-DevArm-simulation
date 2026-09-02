@@ -1,6 +1,14 @@
 ARG ROS_IMAGE=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/osrf/ros:jazzy-desktop-full
 FROM ${ROS_IMAGE}
 
+# Build the canonical ArmGateway protobuf service inside the same isolated
+# image as the MuJoCo driver. The JSON adapter remains available only for
+# backwards-compatible smoke tests.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       libgrpc++-dev libprotobuf-dev protobuf-compiler-grpc \
+    && rm -rf /var/lib/apt/lists/*
+
 ARG MUJOCO_VERSION=3.12.0
 ARG MUJOCO_SHA256=a9367911e6d5eaeade17c2197304687421c1fc932cdf7bcd4cb8cfaf0374dcb2
 ARG MUJOCO_URL=https://github.com/google-deepmind/mujoco/releases/download/3.12.0/mujoco-3.12.0-linux-x86_64.tar.gz

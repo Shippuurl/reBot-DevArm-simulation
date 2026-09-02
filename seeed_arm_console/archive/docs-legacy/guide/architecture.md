@@ -14,7 +14,7 @@ Win11 egui 上位机
   │ 协议校验、鉴权、限位、超时和状态机
   ▼
 ROS 2 Jazzy 桥接节点（Docker）
-  ├── OpenRAVE headless：规划 / IK
+  ├── Pinocchio + ProxSuite：规划 / IK / 约束优化
   ├── MuJoCo：仿真驱动（计划）
   └── 真实机械臂驱动适配器（计划）
 

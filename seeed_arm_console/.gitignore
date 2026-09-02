@@ -4,3 +4,11 @@
 /docs/.vitepress/dist/
 /cpp/**/build/
 /recordings/*.rrd
+.venv-planning/
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+sdk/**/build/
+sdk/**/target/
+sdk/python/*.egg-info/
+.veicrun.json

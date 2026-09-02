@@ -2,13 +2,101 @@ syntax = "proto3";
 
 package arm.console.v1;
 
-// Transport contract shared by the C++ gateway and the Windows console.
+// Transport contract shared by the C++ gateway, Rust Viewer and ROS 2 tools.
 // Units: radians, radians/second, meters, meters/second, nanoseconds.
 
 service ArmGateway {
-  rpc Connect(ConnectRequest) returns (ConnectReply);
+  // Named Handshake to avoid a method-name collision in generated Rust clients.
+  rpc Handshake(ConnectRequest) returns (ConnectReply);
   rpc Command(ControlCommand) returns (CommandAck);
   rpc SubscribeTelemetry(TelemetryRequest) returns (stream TelemetryFrame);
+}
+
+// Headless Pinocchio/ProxSuite planning boundary. Planning never actuates a
+// robot; returned trajectories are candidates for ArmGateway safety checks.
+service ArmPlanner {
+  rpc SolveIK(IKRequest) returns (IKResponse);
+  rpc PlanTrajectory(TrajectoryPlanRequest) returns (TrajectoryPlanResponse);
+}
+
+message PoseTarget {
+  double position_x_m = 1;
+  double position_y_m = 2;
+  double position_z_m = 3;
+  // Unit quaternion in x,y,z,w order. All-zero means orientation unspecified.
+  double rotation_x = 4;
+  double rotation_y = 5;
+  double rotation_z = 6;
+  double rotation_w = 7;
+  string frame_id = 8;
+}
+
+message PlanningMetadata {
+  string model_version = 1;
+  string solver = 2;
+  uint64 random_seed = 3;
+  uint64 elapsed_ns = 4;
+}
+
+message CollisionSummary {
+  bool checked = 1;
+  bool collision_free = 2;
+  uint32 checked_pairs = 3;
+  repeated string contacts = 4;
+  double minimum_distance_m = 5;
+}
+
+message AllowedCollisionPair {
+  string first = 1;
+  string second = 2;
+}
+
+enum AssemblyPhase {
+  ASSEMBLY_PHASE_UNSPECIFIED = 0;
+  APPROACH = 1;
+  MATE = 2;
+  RETRACT = 3;
+}
+
+message IKRequest {
+  string request_id = 1;
+  PoseTarget target = 2;
+  repeated double seed_position_rad = 3;
+  bool check_collisions = 4;
+  double minimum_distance_threshold_m = 5;
+  AssemblyPhase assembly_phase = 6;
+  repeated AllowedCollisionPair allowed_collision_pairs = 7;
+}
+
+message IKResponse {
+  string request_id = 1;
+  bool success = 2;
+  repeated double joint_position_rad = 3;
+  bool within_limits = 4;
+  CollisionSummary collision = 5;
+  PlanningMetadata metadata = 6;
+  string reason = 7;
+}
+
+message TrajectoryPlanRequest {
+  string request_id = 1;
+  PoseTarget start = 2;
+  PoseTarget goal = 3;
+  uint32 max_rate_hz = 4;
+  bool dry_run = 5;
+  bool check_collisions = 6;
+  double minimum_distance_threshold_m = 7;
+  AssemblyPhase assembly_phase = 8;
+  repeated AllowedCollisionPair allowed_collision_pairs = 9;
+}
+
+message TrajectoryPlanResponse {
+  string request_id = 1;
+  bool success = 2;
+  repeated TrajectoryPoint points = 3;
+  CollisionSummary collision = 4;
+  PlanningMetadata metadata = 5;
+  string reason = 6;
 }
 
 message ConnectRequest {
@@ -37,12 +125,21 @@ message ControlCommand {
     JogCommand jog = 12;
     ExecuteTrajectoryCommand execute_trajectory = 13;
     ResetFaultCommand reset_fault = 14;
+    PauseCommand pause = 15;
+    ResumeCommand resume = 16;
+    SpeedScaleCommand speed_scale = 17;
   }
 }
 
 message EnableCommand { bool enabled = 1; }
 message StopCommand { bool emergency = 1; }
 message ResetFaultCommand {}
+message PauseCommand {}
+message ResumeCommand {}
+message SpeedScaleCommand {
+  // Execution multiplier, bounded by the gateway to [0.1, 2.0].
+  double scale = 1;
+}
 
 message JogCommand {
   uint32 joint_index = 1;
@@ -81,9 +178,12 @@ message TelemetryRequest {
 
 message TelemetryFrame {
   uint64 sequence = 1;
+  // timestamp_ns is retained as the legacy simulation timestamp alias.
   uint64 timestamp_ns = 2;
   SourceKind source = 3;
   SampleQuality quality = 4;
+  uint64 sim_time_ns = 5;
+  uint64 wall_time_ns = 6;
   repeated double joint_position_rad = 10;
   repeated double joint_velocity_rad_s = 11;
   repeated Transform3D tf = 12;
@@ -91,6 +191,7 @@ message TelemetryFrame {
   repeated TrajectoryPoint actual_trajectory = 14;
   repeated ImageFrame images = 15;
   repeated PointCloudFrame point_clouds = 16;
+  repeated ContactState contacts = 17;
 }
 
 message Transform3D {
@@ -120,6 +221,13 @@ message PointCloudFrame {
   repeated float positions_xyz = 2;
   // Optional packed RGBA colors, one uint32 per point.
   repeated uint32 colors_rgba = 3;
+}
+
+message ContactState {
+  string first_geom = 1;
+  string second_geom = 2;
+  double distance_m = 3;
+  double normal_force_n = 4;
 }
 
 enum SourceKind {

@@ -11,10 +11,35 @@ use std::{
 
 use serde::Deserialize;
 
-use crate::telemetry::TelemetryFrame;
+use crate::telemetry::{
+    MAX_IMAGE_BYTES, MAX_IMAGES_PER_FRAME, MAX_POINT_CLOUD_POINTS, MAX_POINT_CLOUDS_PER_FRAME,
+    TelemetryFrame,
+};
 
 pub struct RerunRecorder {
     recording: rerun::RecordingStream,
+}
+
+impl RerunRecorder {
+    /// Wrap an already-connected recording stream.
+    ///
+    /// The embedded Viewer owns the gRPC connection setup because it also
+    /// starts the local Rerun receiver.  Reusing the stream here keeps model
+    /// assets and live gateway telemetry in one recording instead of creating
+    /// a second, disconnected sample recording.
+    pub fn from_recording(recording: rerun::RecordingStream) -> Self {
+        Self { recording }
+    }
+
+    /// Borrow the underlying stream for protocol-specific frame logging.
+    pub fn recording(&self) -> &rerun::RecordingStream {
+        &self.recording
+    }
+
+    /// Return ownership of the wrapped stream after one-off setup is done.
+    pub fn into_recording(self) -> rerun::RecordingStream {
+        self.recording
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -39,9 +64,18 @@ struct ModelVisual {
 
 impl RerunRecorder {
     pub fn save(path: impl AsRef<Path>) -> Result<Self, String> {
-        let recording = rerun::RecordingStreamBuilder::new("robot_workspace")
-            .save(path.as_ref().to_path_buf())
-            .map_err(|error| format!("创建 Rerun 记录失败: {error}"))?;
+        // When running beside the embedded Viewer, stream directly to its
+        // gRPC receiver; otherwise keep the existing offline .rrd workflow.
+        let builder = rerun::RecordingStreamBuilder::new("robot_workspace");
+        let recording = if let Ok(url) = std::env::var("RERUN_GRPC_URL") {
+            builder
+                .connect_grpc_opts(url)
+                .map_err(|error| format!("连接 Rerun gRPC 接收器失败: {error}"))?
+        } else {
+            builder
+                .save(path.as_ref().to_path_buf())
+                .map_err(|error| format!("创建 Rerun 记录失败: {error}"))?
+        };
         Ok(Self { recording })
     }
 
@@ -119,12 +153,28 @@ impl RerunRecorder {
                         &rerun::CoordinateFrame::new(frame_id(&link)),
                     )
                     .map_err(|error| format!("记录坐标帧 {link} 失败: {error}"))?;
+                self.recording
+                    .log_static(
+                        format!("robot/frames/{link}"),
+                        &rerun::Transform3D::from_translation([0.0, 0.0, 0.0])
+                            .with_parent_frame("world")
+                            .with_child_frame(frame_id(&link)),
+                    )
+                    .map_err(|error| format!("记录坐标帧初始变换 {link} 失败: {error}"))?;
             }
+            let model_entity = format!("robot/frames/{link}/model/{index:02}_{name}");
+            // Asset3D entities otherwise get an implicit `tf#<entity-path>`
+            // frame of their own. Attach each mesh explicitly to its link's
+            // named frame so dynamic link transforms resolve all the way to
+            // world in the Rerun transform graph.
             self.recording
                 .log_static(
-                    format!("robot/frames/{link}/model/{index:02}_{name}"),
-                    &asset,
+                    model_entity.as_str(),
+                    &rerun::CoordinateFrame::new(frame_id(&link)),
                 )
+                .map_err(|error| format!("记录模型坐标帧 {model_entity} 失败: {error}"))?;
+            self.recording
+                .log_static(model_entity, &asset)
                 .map_err(|error| format!("记录模型资源 {} 失败: {error}", visual.mesh))?;
             count += 1;
         }
@@ -258,7 +308,18 @@ fn log_trajectory(
 }
 
 fn log_sensors(recording: &rerun::RecordingStream, frame: &TelemetryFrame) -> Result<(), String> {
-    for image in &frame.images {
+    for image in frame
+        .images
+        .iter()
+        .filter(|image| image.width <= 4096 && image.height <= 4096)
+        .take(MAX_IMAGES_PER_FRAME)
+    {
+        // Encoded images are intentionally skipped when they exceed the
+        // transport budget. Truncating compressed bytes would create an
+        // invalid payload and is less safe than dropping one frame.
+        if image.data.len() > MAX_IMAGE_BYTES {
+            continue;
+        }
         if image.data.is_empty() {
             continue;
         }
@@ -268,14 +329,37 @@ fn log_sensors(recording: &rerun::RecordingStream, frame: &TelemetryFrame) -> Re
             .log(path, &encoded)
             .map_err(|error| format!("记录图像失败: {error}"))?;
     }
-    for cloud in &frame.point_clouds {
+    for cloud in frame.point_clouds.iter().take(MAX_POINT_CLOUDS_PER_FRAME) {
         if cloud.positions.is_empty() {
             continue;
         }
         let path = format!("sensors/{}/points", entity_name(&cloud.sensor));
-        let mut points = rerun::Points3D::new(cloud.positions.iter().copied());
+        let stride = cloud
+            .positions
+            .len()
+            .div_ceil(MAX_POINT_CLOUD_POINTS)
+            .max(1);
+        let positions: Vec<[f32; 3]> = cloud
+            .positions
+            .iter()
+            .copied()
+            .enumerate()
+            .filter(|(index, _)| index % stride == 0)
+            .take(MAX_POINT_CLOUD_POINTS)
+            .map(|(_, position)| position)
+            .collect();
+        let mut points = rerun::Points3D::new(positions);
         if cloud.colors_rgba.len() == cloud.positions.len() {
-            points = points.with_colors(cloud.colors_rgba.iter().copied());
+            let colors: Vec<u32> = cloud
+                .colors_rgba
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|(index, _)| index % stride == 0)
+                .take(MAX_POINT_CLOUD_POINTS)
+                .map(|(_, color)| color)
+                .collect();
+            points = points.with_colors(colors);
         }
         recording
             .log(path, &points)
@@ -320,16 +404,21 @@ mod tests {
     use crate::telemetry::{TelemetryFrame, Transform3D};
     use std::{
         fs,
+        path::PathBuf,
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    #[test]
-    fn writes_a_recording_file_without_a_viewer() {
+    fn temporary_recording(name: &str) -> PathBuf {
         let suffix = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock before unix epoch")
             .as_nanos();
-        let path = std::env::temp_dir().join(format!("robot-workspace-{suffix}.rrd"));
+        std::env::temp_dir().join(format!("{name}-{suffix}.rrd"))
+    }
+
+    #[test]
+    fn writes_a_recording_file_without_a_viewer() {
+        let path = temporary_recording("robot-workspace");
 
         let recorder = RerunRecorder::save(&path).expect("create recording");
         let mut frame = TelemetryFrame {
@@ -343,5 +432,33 @@ mod tests {
         let metadata = fs::metadata(&path).expect("recording file");
         assert!(metadata.len() > 0);
         fs::remove_file(path).expect("remove temporary recording");
+    }
+
+    #[test]
+    fn writes_all_manifest_model_assets_to_an_existing_recording() {
+        let path = temporary_recording("robot-model-assets");
+        let recording = rerun::RecordingStreamBuilder::new("model_asset_test")
+            .save(&path)
+            .expect("create recording");
+        let recorder = RerunRecorder::from_recording(recording);
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets/robot/b601_rs");
+
+        let count = recorder
+            .log_model_assets(root)
+            .expect("log model manifest assets");
+        assert_eq!(count, 25);
+        let frame = TelemetryFrame {
+            sequence: 1,
+            tf: vec![Transform3D::default()],
+            ..TelemetryFrame::default()
+        };
+        recorder
+            .log_frame(&frame)
+            .expect("log live transform after static model");
+        drop(recorder);
+
+        let metadata = fs::metadata(&path).expect("model recording file");
+        assert!(metadata.len() > 0);
+        fs::remove_file(path).expect("remove temporary model recording");
     }
 }
